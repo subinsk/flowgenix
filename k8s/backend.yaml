@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flowgenix-backend
+  namespace: flowgenix
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flowgenix-backend
+  template:
+    metadata:
+      labels:
+        app: flowgenix-backend
+    spec:
+      containers:
+      - name: backend
+        image: flowgenix/backend:latest
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://flowgenix:flowgenix@postgres:5432/flowgenix"
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: flowgenix-secrets
+              key: SECRET_KEY
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: flowgenix-secrets
+              key: GEMINI_API_KEY
+        - name: BRAVE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: flowgenix-secrets
+              key: BRAVE_API_KEY
+        - name: SERPAPI_KEY
+          valueFrom:
+            secretKeyRef:
+              name: flowgenix-secrets
+              key: SERPAPI_KEY
+        ports:
+        - containerPort: 8000
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flowgenix-backend
+  namespace: flowgenix
+spec:
+  selector:
+    app: flowgenix-backend
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP

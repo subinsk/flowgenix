@@ -1,0 +1,508 @@
+'use client';
+
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Settings, Trash2, Upload, Download, HelpCircle, Eye, EyeOff } from 'lucide-react';
+import { Button } from '../shared/components';
+
+interface NodeConfigurationPanelProps {
+  selectedNode: any;
+  onClose: () => void;
+  onUpdateNode: (nodeId: string, updates: any) => void;
+  onDeleteNode: (nodeId: string) => void;
+}
+
+const predefinedConfigs = {
+  userQuery: [
+    { name: 'Simple Query', query: 'What is the main topic?' },
+    { name: 'Detailed Analysis', query: 'Provide a detailed analysis of the content including key points, insights, and recommendations.' },
+    { name: 'Summary Request', query: 'Please summarize the key points in bullet format.' }
+  ],
+  knowledgeBase: [
+    { name: 'OpenAI Embeddings', model: 'text-embedding-ada-002', chunkSize: 1000 },
+    { name: 'High Quality Embeddings', model: 'text-embedding-3-large', chunkSize: 500 },
+    { name: 'Fast Embeddings', model: 'text-embedding-3-small', chunkSize: 1500 }
+  ],
+  llmEngine: [
+    { name: 'GPT-4 Creative', model: 'GPT-4', temperature: 0.9, maxTokens: 2000 },
+    { name: 'GPT-4 Balanced', model: 'GPT-4', temperature: 0.7, maxTokens: 1000 },
+    { name: 'GPT-4 Precise', model: 'GPT-4', temperature: 0.3, maxTokens: 500 }
+  ],
+  output: [
+    { name: 'Formatted Output', format: 'markdown', includeMetadata: true },
+    { name: 'Plain Text', format: 'text', includeMetadata: false },
+    { name: 'Structured JSON', format: 'json', includeMetadata: true }
+  ]
+};
+
+export default function NodeConfigurationPanel({ 
+  selectedNode, 
+  onClose, 
+  onUpdateNode, 
+  onDeleteNode 
+}: NodeConfigurationPanelProps) {
+  const [config, setConfig] = useState(selectedNode?.data || {});
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [showSerpKey, setShowSerpKey] = useState(false);
+
+  if (!selectedNode) return null;
+
+  const handleConfigChange = (key: string, value: any) => {
+    const updatedConfig = { ...config, [key]: value };
+    setConfig(updatedConfig);
+    onUpdateNode(selectedNode.id, { data: updatedConfig });
+  };
+
+  const applyPredefinedConfig = (preconfig: any) => {
+    const updatedConfig = { ...config, ...preconfig };
+    setConfig(updatedConfig);
+    onUpdateNode(selectedNode.id, { data: updatedConfig });
+  };
+
+  const exportConfig = () => {
+    const configData = JSON.stringify(config, null, 2);
+    const blob = new Blob([configData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedNode.type}-config.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importConfig = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const importedConfig = JSON.parse(e.target?.result as string);
+          const updatedConfig = { ...config, ...importedConfig };
+          setConfig(updatedConfig);
+          onUpdateNode(selectedNode.id, { data: updatedConfig });
+        } catch (error) {
+          console.error('Error importing config:', error);
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const renderUserQueryConfig = () => (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Query Input
+          <button 
+            className="ml-2 text-muted-foreground hover:text-foreground"
+            title="Enter the query that will be processed by the workflow"
+          >
+            <HelpCircle size={16} />
+          </button>
+        </label>
+        <textarea
+          className="w-full p-3 text-sm bg-input border border-border rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          placeholder="Write your query here..."
+          rows={3}
+          value={config.query || ''}
+          onChange={(e) => handleConfigChange('query', e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Query Type
+        </label>
+        <select 
+          className="w-full p-3 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          value={config.queryType || 'general'}
+          onChange={(e) => handleConfigChange('queryType', e.target.value)}
+        >
+          <option value="general">General Question</option>
+          <option value="analysis">Analysis Request</option>
+          <option value="summary">Summary Request</option>
+          <option value="extraction">Data Extraction</option>
+        </select>
+      </div>
+    </div>
+  );
+
+  const renderKnowledgeBaseConfig = () => (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Embedding Model
+          <button 
+            className="ml-2 text-muted-foreground hover:text-foreground"
+            title="Choose the embedding model for text processing"
+          >
+            <HelpCircle size={16} />
+          </button>
+        </label>
+        <select 
+          className="w-full p-3 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          value={config.embeddingModel || 'text-embedding-ada-002'}
+          onChange={(e) => handleConfigChange('embeddingModel', e.target.value)}
+        >
+          <option value="text-embedding-ada-002">text-embedding-ada-002</option>
+          <option value="text-embedding-3-small">text-embedding-3-small</option>
+          <option value="text-embedding-3-large">text-embedding-3-large</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Chunk Size
+        </label>
+        <input
+          type="number"
+          className="w-full p-3 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          placeholder="1000"
+          value={config.chunkSize || 1000}
+          onChange={(e) => handleConfigChange('chunkSize', parseInt(e.target.value))}
+          min="100"
+          max="8000"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          API Key
+        </label>
+        <div className="relative">
+          <input
+            type={showApiKey ? "text" : "password"}
+            className="w-full p-3 pr-10 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            placeholder="Enter API key..."
+            value={config.apiKey || ''}
+            onChange={(e) => handleConfigChange('apiKey', e.target.value)}
+          />
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            onClick={() => setShowApiKey(!showApiKey)}
+          >
+            {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderLLMEngineConfig = () => (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Model
+        </label>
+        <select 
+          className="w-full p-3 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          value={config.model || 'GPT-4'}
+          onChange={(e) => handleConfigChange('model', e.target.value)}
+        >
+          <option value="GPT-4">GPT-4</option>
+          <option value="GPT-4 Turbo">GPT-4 Turbo</option>
+          <option value="GPT-3.5 Turbo">GPT-3.5 Turbo</option>
+          <option value="Gemini Pro">Gemini Pro</option>
+          <option value="Claude 3">Claude 3</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Temperature: {config.temperature || 0.7}
+          <button 
+            className="ml-2 text-muted-foreground hover:text-foreground"
+            title="Controls randomness: 0 = focused, 1 = creative"
+          >
+            <HelpCircle size={16} />
+          </button>
+        </label>
+        <input
+          type="range"
+          className="w-full"
+          min="0"
+          max="1"
+          step="0.1"
+          value={config.temperature || 0.7}
+          onChange={(e) => handleConfigChange('temperature', parseFloat(e.target.value))}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Max Tokens
+        </label>
+        <input
+          type="number"
+          className="w-full p-3 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          placeholder="1000"
+          value={config.maxTokens || 1000}
+          onChange={(e) => handleConfigChange('maxTokens', parseInt(e.target.value))}
+          min="50"
+          max="8000"
+        />
+      </div>
+
+      <div className="flex items-center gap-3">
+        <input
+          type="checkbox"
+          id="webSearch"
+          className="rounded border-border"
+          checked={config.webSearchEnabled || false}
+          onChange={(e) => handleConfigChange('webSearchEnabled', e.target.checked)}
+        />
+        <label htmlFor="webSearch" className="text-sm font-medium text-foreground">
+          Enable Web Search
+        </label>
+      </div>
+
+      {config.webSearchEnabled && (
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            SERP API Key
+          </label>
+          <div className="relative">
+            <input
+              type={showSerpKey ? "text" : "password"}
+              className="w-full p-3 pr-10 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder="Enter SERP API key..."
+              value={config.serpApiKey || ''}
+              onChange={(e) => handleConfigChange('serpApiKey', e.target.value)}
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowSerpKey(!showSerpKey)}
+            >
+              {showSerpKey ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          API Key
+        </label>
+        <div className="relative">
+          <input
+            type={showApiKey ? "text" : "password"}
+            className="w-full p-3 pr-10 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            placeholder="Enter API key..."
+            value={config.apiKey || ''}
+            onChange={(e) => handleConfigChange('apiKey', e.target.value)}
+          />
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            onClick={() => setShowApiKey(!showApiKey)}
+          >
+            {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderOutputConfig = () => (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Output Format
+        </label>
+        <select 
+          className="w-full p-3 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          value={config.format || 'markdown'}
+          onChange={(e) => handleConfigChange('format', e.target.value)}
+        >
+          <option value="markdown">Markdown</option>
+          <option value="text">Plain Text</option>
+          <option value="json">JSON</option>
+          <option value="html">HTML</option>
+        </select>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <input
+          type="checkbox"
+          id="includeMetadata"
+          className="rounded border-border"
+          checked={config.includeMetadata || false}
+          onChange={(e) => handleConfigChange('includeMetadata', e.target.checked)}
+        />
+        <label htmlFor="includeMetadata" className="text-sm font-medium text-foreground">
+          Include Metadata
+        </label>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <input
+          type="checkbox"
+          id="saveToFile"
+          className="rounded border-border"
+          checked={config.saveToFile || false}
+          onChange={(e) => handleConfigChange('saveToFile', e.target.checked)}
+        />
+        <label htmlFor="saveToFile" className="text-sm font-medium text-foreground">
+          Save to File
+        </label>
+      </div>
+    </div>
+  );
+
+  const renderConfigContent = () => {
+    switch (selectedNode.type) {
+      case 'userQuery':
+        return renderUserQueryConfig();
+      case 'knowledgeBase':
+        return renderKnowledgeBaseConfig();
+      case 'llmEngine':
+        return renderLLMEngineConfig();
+      case 'output':
+        return renderOutputConfig();
+      default:
+        return <div>No configuration available for this node type.</div>;
+    }
+  };
+
+  const getNodeIcon = () => {
+    switch (selectedNode.type) {
+      case 'userQuery': return '💬';
+      case 'knowledgeBase': return '📚';
+      case 'llmEngine': return '🧠';
+      case 'output': return '📤';
+      default: return '⚙️';
+    }
+  };
+
+  const getNodeName = () => {
+    switch (selectedNode.type) {
+      case 'userQuery': return 'User Query';
+      case 'knowledgeBase': return 'Knowledge Base';
+      case 'llmEngine': return 'LLM Engine';
+      case 'output': return 'Output';
+      default: return 'Component';
+    }
+  };
+
+  const preconfigs = predefinedConfigs[selectedNode.type as keyof typeof predefinedConfigs] || [];
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-card border border-border rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="p-6 border-b border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{getNodeIcon()}</span>
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">{getNodeName()} Configuration</h3>
+                  <p className="text-sm text-muted-foreground">ID: {selectedNode.id}</p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-muted rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-6 overflow-y-auto max-h-[60vh]">
+            {/* Predefined Configurations */}
+            {preconfigs.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-foreground mb-3">Quick Setup</h4>
+                <div className="grid grid-cols-1 gap-2">
+                  {preconfigs.map((preconfig, index) => (
+                    <button
+                      key={index}
+                      onClick={() => applyPredefinedConfig(preconfig)}
+                      className="p-3 text-left bg-muted hover:bg-muted/80 rounded-lg transition-colors"
+                    >
+                      <div className="font-medium text-foreground">{preconfig.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {Object.entries(preconfig).slice(1, 3).map(([key, value]) => 
+                          `${key}: ${value}`
+                        ).join(', ')}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Configuration Fields */}
+            <div className="mb-6">
+              <h4 className="text-sm font-medium text-foreground mb-3">Configuration</h4>
+              {renderConfigContent()}
+            </div>
+
+            {/* Import/Export */}
+            <div className="mb-6">
+              <h4 className="text-sm font-medium text-foreground mb-3">Configuration Management</h4>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportConfig}
+                  className="flex items-center gap-2"
+                >
+                  <Download size={16} />
+                  Export
+                </Button>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={importConfig}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                  <Button variant="outline" size="sm" className="flex items-center gap-2">
+                    <Upload size={16} />
+                    Import
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-6 border-t border-border flex justify-between">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                onDeleteNode(selectedNode.id);
+                onClose();
+              }}
+              className="flex items-center gap-2"
+            >
+              <Trash2 size={16} />
+              Delete Node
+            </Button>
+            <Button onClick={onClose}>
+              Done
+            </Button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
