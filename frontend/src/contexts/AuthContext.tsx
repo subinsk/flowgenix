@@ -20,7 +20,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    // Always set the auth header on mount
     authService.setAuthHeader(localStorage.getItem('auth_token'));
     checkAuth();
   }, []);
@@ -34,7 +33,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
       localStorage.removeItem('auth_token');
       setUser(null);
     } finally {

@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useChatStore } from '../../store/chat';
 import { useWorkflowStore } from '../../store/workflow';
 import { Button, Card } from '../../shared/components';
-import { useNotifications } from '../../shared/hooks';
-import { ANIMATIONS } from '../../shared/constants';
+import { useNotifications } from '../../hooks';
+import { ANIMATIONS } from '../../constants';
 
 interface ChatInterfaceProps {
   className?: string;

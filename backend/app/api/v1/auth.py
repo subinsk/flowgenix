@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.schemas.auth import UserCreate, UserLogin, UserResponse, Token
 from app.services.auth_service import AuthService
 from app.utils.dependencies import get_current_user
+from app.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
@@ -21,7 +22,10 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     
     try:
         user = auth_service.create_user(user_data)
-        return user
+        # Ensure UUID is returned as string
+        user_dict = user.__dict__.copy()
+        user_dict['id'] = str(user_dict['id'])
+        return UserResponse.model_validate(user_dict)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -55,10 +59,13 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
-    current_user: UserResponse = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get current user information"""
-    return current_user
+    # Ensure UUID is returned as string
+    user_dict = current_user.__dict__.copy()
+    user_dict['id'] = str(user_dict['id'])
+    return UserResponse.model_validate(user_dict)
 
 
 @router.post("/logout")

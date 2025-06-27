@@ -3,13 +3,12 @@ import { devtools, persist } from 'zustand/middleware';
 
 interface Document {
   id: string;
-  name: string;
-  type: string;
-  size: number;
-  uploadedAt: Date;
-  status: 'uploading' | 'processing' | 'ready' | 'error';
-  url?: string;
-  embeddings?: any[];
+  filename: string;
+  content_type: string;
+  file_size: number;
+  file_path: string;
+  upload_date: string;
+  processed: boolean;
 }
 
 interface DocumentState {

@@ -2,34 +2,37 @@ import api from './api';
 
 export interface ChatMessage {
   id: string;
+  session_id: string;
   content: string;
-  sender: 'user' | 'assistant';
+  role: 'user' | 'assistant';
   timestamp: string;
-  workflow_id?: string;
 }
 
 export interface ChatSession {
   id: string;
+  user_id: string;
+  title: string;
   workflow_id: string;
   created_at: string;
   messages: ChatMessage[];
 }
 
 export const chatService = {
-  createChatSession: async (workflowId: string): Promise<ChatSession> => {
-    const response = await api.post('/chat/sessions', { workflow_id: workflowId });
+  createChatSession: async (workflowId: string, title?: string): Promise<ChatSession> => {
+    const response = await api.post('/chat/sessions', { workflow_id: workflowId, title });
     return response.data;
   },
 
-  getChatSessions: async (workflowId?: string): Promise<ChatSession[]> => {
-    const params = workflowId ? { workflow_id: workflowId } : {};
-    const response = await api.get('/chat/sessions', { params });
+  getChatSessions: async (): Promise<ChatSession[]> => {
+    const response = await api.get('/chat/sessions');
     return response.data;
   },
 
-  sendMessage: async (sessionId: string, message: string): Promise<ChatMessage> => {
-    const response = await api.post(`/chat/sessions/${sessionId}/messages`, { 
-      content: message 
+  sendMessage: async (sessionId: string, content: string, role: 'user' | 'assistant' = 'user'): Promise<ChatMessage> => {
+    const response = await api.post('/chat/messages', {
+      session_id: sessionId,
+      content,
+      role,
     });
     return response.data;
   },
@@ -37,9 +40,5 @@ export const chatService = {
   getMessages: async (sessionId: string): Promise<ChatMessage[]> => {
     const response = await api.get(`/chat/sessions/${sessionId}/messages`);
     return response.data;
-  },
-
-  deleteChatSession: async (sessionId: string): Promise<void> => {
-    await api.delete(`/chat/sessions/${sessionId}`);
   },
 };

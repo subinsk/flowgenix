@@ -35,10 +35,26 @@ websocket_connections_active = Gauge(
     'Active WebSocket connections'
 )
 
+db_connections_active = Gauge(
+    'db_connections_active',
+    'Active database connections'
+)
+
+db_connections_idle = Gauge(
+    'db_connections_idle',
+    'Idle database connections'
+)
+
 document_uploads_total = Counter(
     'document_uploads_total',
     'Total document uploads',
     ['status']
+)
+
+embedding_operations_total = Counter(
+    'embedding_operations_total',
+    'Total embedding operations',
+    ['operation_type']
 )
 
 llm_requests_total = Counter(
@@ -47,8 +63,20 @@ llm_requests_total = Counter(
     ['provider', 'status']
 )
 
+llm_request_duration_seconds = Histogram(
+    'llm_request_duration_seconds',
+    'LLM request duration in seconds',
+    ['provider']
+)
 
-class MetricsCollector:
+web_search_requests_total = Counter(
+    'web_search_requests_total',
+    'Total web search requests',
+    ['provider', 'status']
+)
+
+
+class MetricsMiddleware:
     """Centralized metrics collection"""
     
     def __init__(self):
@@ -101,16 +129,41 @@ class MetricsCollector:
             
         document_uploads_total.labels(status=status).inc()
     
-    def track_llm_request(self, provider: str, status: str):
+    def track_embedding_operation(self, operation_type: str):
+        """Track embedding operation metrics"""
+        if not settings.prometheus_enabled:
+            return
+            
+        embedding_operations_total.labels(operation_type=operation_type).inc()
+    
+    def track_llm_request(self, provider: str, status: str, duration: float = None):
         """Track LLM request metrics"""
         if not settings.prometheus_enabled:
             return
             
         llm_requests_total.labels(provider=provider, status=status).inc()
+        
+        if duration is not None:
+            llm_request_duration_seconds.labels(provider=provider).observe(duration)
+    
+    def track_web_search(self, provider: str, status: str):
+        """Track web search request metrics"""
+        if not settings.prometheus_enabled:
+            return
+            
+        web_search_requests_total.labels(provider=provider, status=status).inc()
+    
+    def update_db_connections(self, active: int, idle: int):
+        """Update active and idle database connections metrics"""
+        if not settings.prometheus_enabled:
+            return
+            
+        db_connections_active.set(active)
+        db_connections_idle.set(idle)
 
 
 # Global metrics instance
-metrics = MetricsCollector()
+metrics = MetricsMiddleware()
 
 
 def setup_metrics(app):
@@ -138,3 +191,8 @@ def setup_metrics(app):
         )
         
         return response
+    
+    @app.get("/metrics")
+    async def get_metrics():
+        """Expose metrics endpoint"""
+        return generate_latest()

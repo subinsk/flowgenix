@@ -3,6 +3,7 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui';
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -30,12 +31,12 @@ export default function Header() {
             <span className="text-sm text-card-foreground">
               Welcome, {user.name}
             </span>
-            <button
+            <Button
+              variant="outline"
               onClick={handleLogout}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Logout
-            </button>
+            </Button>
           </div>
         )}
       </div>

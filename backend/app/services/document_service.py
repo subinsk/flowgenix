@@ -25,7 +25,7 @@ class DocumentService:
         # Ensure upload directory exists
         os.makedirs(self.upload_dir, exist_ok=True)
 
-    async def upload_document(self, file: UploadFile, user_id: int) -> Document:
+    async def upload_document(self, file: UploadFile, user_id: str) -> Document:
         """Upload and process document"""
         # Validate file type
         if not self._is_valid_file_type(file.filename):
@@ -63,7 +63,7 @@ class DocumentService:
 
         return db_document
 
-    async def extract_text(self, document_id: int) -> str:
+    async def extract_text(self, document_id: str) -> str:
         """Extract text from document"""
         if not self.db:
             return ""
@@ -96,39 +96,36 @@ class DocumentService:
         except Exception as e:
             return f"Error extracting PDF text: {str(e)}"
 
-    async def _process_document(self, document: Document):
-        """Process document: extract text and generate embeddings"""
+    async def _process_document(self, document: Document, embedding_model: str = "text-embedding-ada-002", api_key: str = None):
+        """Process document: extract text and generate embeddings with selected model and key"""
         try:
             # Extract text
             text = await self._extract_text_from_file(document.file_path)
-            
-            # Generate embeddings
+            # Generate embeddings with model and key
             ai_service = AIService()
-            embeddings = await ai_service.generate_embeddings(text)
-            
+            embeddings = await ai_service.generate_embeddings(text, model=embedding_model, api_key=api_key)
             if embeddings:
                 # Store in ChromaDB
                 collection = self._get_or_create_collection()
                 collection.add(
                     documents=[text],
                     metadatas=[{
-                        "document_id": document.id,
+                        "document_id": str(document.id),
                         "filename": document.filename,
-                        "user_id": document.user_id
+                        "user_id": str(document.user_id),
+                        "workflow_id": str(document.workflow_id) if document.workflow_id else None
                     }],
                     ids=[str(document.id)],
                     embeddings=[embeddings]
                 )
-            
             # Mark as processed
             if self.db:
                 document.processed = True
                 self.db.commit()
-
         except Exception as e:
             print(f"Error processing document {document.id}: {str(e)}")
 
-    async def search_documents(self, query: str, user_id: int, limit: int = 5) -> List[Dict[str, Any]]:
+    async def search_documents_by_user(self, query: str, user_id: str, limit: int = 5) -> List[Dict[str, Any]]:
         """Search documents using vector similarity"""
         try:
             # Generate query embedding
@@ -150,7 +147,7 @@ class DocumentService:
             search_results = []
             for i, doc_id in enumerate(results['ids'][0]):
                 search_results.append({
-                    "document_id": int(doc_id),
+                    "document_id": str(doc_id),
                     "content": results['documents'][0][i][:500] + "...",
                     "similarity": 1 - results['distances'][0][i],
                     "metadata": results['metadatas'][0][i]
@@ -161,6 +158,107 @@ class DocumentService:
         except Exception as e:
             print(f"Error searching documents: {str(e)}")
             return []
+
+    async def search_documents(self, query: str, document_ids: List[str] = None, limit: int = 5) -> List[Dict[str, Any]]:
+        """Search documents for workflow execution"""
+        try:
+            # Generate embedding for query
+            ai_service = AIService()
+            query_embedding = await ai_service.generate_embeddings(query)
+            
+            if not query_embedding:
+                return []
+
+            # Search in ChromaDB
+            collection = self._get_or_create_collection()
+            
+            # Build where clause
+            where_clause = {}
+            if document_ids:
+                where_clause["document_id"] = {"$in": document_ids}
+            
+            results = collection.query(
+                query_embeddings=[query_embedding],
+                n_results=limit,
+                where=where_clause if where_clause else None
+            )
+
+            # Format results for workflow
+            search_results = []
+            for i, doc_id in enumerate(results['ids'][0]):
+                search_results.append({
+                    "id": doc_id,
+                    "content": results['documents'][0][i],
+                    "similarity": 1 - results['distances'][0][i],
+                    "metadata": results['metadatas'][0][i] or {}
+                })
+
+            return search_results
+
+        except Exception as e:
+            print(f"Error searching documents for workflow: {str(e)}")
+            return []
+
+    async def process_document(self, file: UploadFile, workflow_id: str, user_id: str) -> Dict[str, Any]:
+        """Process and store document for workflow"""
+        try:
+            # Save and process document
+            content = await file.read()
+            
+            # Extract text content
+            text_content = ""
+            if file.content_type == "application/pdf":
+                text_content = await self._extract_pdf_text(content)
+            elif file.content_type.startswith("text/"):
+                text_content = content.decode('utf-8')
+            else:
+                raise ValueError(f"Unsupported file type: {file.content_type}")
+            
+            # Generate embeddings
+            ai_service = AIService()
+            embeddings = await ai_service.generate_embeddings(text_content)
+            
+            if embeddings:
+                # Store in ChromaDB
+                collection = self._get_or_create_collection()
+                doc_id = f"{workflow_id}_{file.filename}_{hash(text_content)}"
+                
+                collection.add(
+                    documents=[text_content],
+                    embeddings=[embeddings],
+                    metadatas=[{
+                        "filename": file.filename,
+                        "workflow_id": workflow_id,
+                        "user_id": user_id,
+                        "content_type": file.content_type,
+                        "size": len(content)
+                    }],
+                    ids=[doc_id]
+                )
+            
+            return {
+                "id": doc_id,
+                "filename": file.filename,
+                "size": len(content),
+                "content_type": file.content_type,
+                "processed": bool(embeddings),
+                "embeddings_count": len(embeddings) if embeddings else 0
+            }
+            
+        except Exception as e:
+            raise ValueError(f"Failed to process document: {str(e)}")
+
+    async def _extract_pdf_text(self, content: bytes) -> str:
+        """Extract text from PDF content"""
+        try:
+            doc = fitz.open(stream=content, filetype="pdf")
+            text = ""
+            for page in doc:
+                text += page.get_text()
+            doc.close()
+            return text
+        except Exception as e:
+            raise ValueError(f"Failed to extract PDF text: {str(e)}")
 
     def _get_or_create_collection(self):
         """Get or create ChromaDB collection"""
@@ -177,7 +275,7 @@ class DocumentService:
         file_ext = os.path.splitext(filename)[1].lower()
         return file_ext in settings.allowed_file_types
 
-    def get_user_documents(self, user_id: int, skip: int = 0, limit: int = 100) -> List[Document]:
+    def get_user_documents(self, user_id: str, skip: int = 0, limit: int = 100) -> List[Document]:
         """Get all documents for a user"""
         if not self.db:
             return []

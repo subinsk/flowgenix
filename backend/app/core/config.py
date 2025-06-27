@@ -19,12 +19,8 @@ class Settings(BaseSettings):
     
     # Security
     secret_key: str = os.getenv("SECRET_KEY", "supersecret-change-in-production")
-    access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
-    
-    # External APIs
-    gemini_api_key: Optional[str] = os.getenv("GEMINI_API_KEY")
-    brave_api_key: Optional[str] = os.getenv("BRAVE_API_KEY")
-    serpapi_key: Optional[str] = os.getenv("SERPAPI_KEY")
+    access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
+    api_key_encryption_key: str = os.getenv("API_KEY_ENCRYPTION_KEY", "ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg=")
     
     # ChromaDB
     chroma_host: str = os.getenv("CHROMA_HOST", "localhost")

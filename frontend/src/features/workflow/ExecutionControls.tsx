@@ -2,9 +2,9 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useWorkflowStore } from '../../store/workflow';
 import { useUIStore } from '../../store/ui';
-import { useNotifications } from '../../shared/hooks';
+import { useNotifications } from '../../hooks';
 import { Button } from '../../shared/components';
-import { ANIMATIONS } from '../../shared/constants';
+import { ANIMATIONS } from '../../constants';
 
 interface ExecutionControlsProps {
   className?: string;

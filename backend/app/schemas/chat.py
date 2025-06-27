@@ -9,20 +9,21 @@ class ChatMessageBase(BaseModel):
 
 
 class ChatMessageCreate(ChatMessageBase):
-    session_id: int
+    session_id: str
 
 
 class ChatMessageResponse(ChatMessageBase):
-    id: int
-    session_id: int
+    id: str
+    session_id: str
     timestamp: datetime
     
     class Config:
         from_attributes = True
+        json_encoders = {__import__('uuid').UUID: str}
 
 
 class ChatSessionBase(BaseModel):
-    workflow_id: Optional[int] = None
+    workflow_id: Optional[str] = None
     title: Optional[str] = None
 
 
@@ -31,16 +32,17 @@ class ChatSessionCreate(ChatSessionBase):
 
 
 class ChatSessionResponse(ChatSessionBase):
-    id: int
-    user_id: int
+    id: str
+    user_id: str
     created_at: datetime
     messages: List[ChatMessageResponse] = []
     
     class Config:
         from_attributes = True
+        json_encoders = {__import__('uuid').UUID: str}
 
 
 class ChatRequest(BaseModel):
     message: str
-    session_id: Optional[int] = None
-    workflow_id: Optional[int] = None
+    session_id: Optional[str] = None
+    workflow_id: Optional[str] = None

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { WORKFLOW_COMPONENTS, ANIMATIONS } from '../../shared/constants';
+import { WORKFLOW_COMPONENTS, ANIMATIONS } from '../../constants';
 import { Card } from '../../shared/components';
 
 interface ComponentLibraryPanelProps {

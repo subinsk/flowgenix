@@ -1,7 +1,10 @@
+"use client"
+
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useUIStore } from '../../store/ui';
-import { ANIMATIONS } from '../constants';
+import { useUIStore } from '@/store/ui';
+import { ANIMATIONS } from '@/constants';
+import { CheckCircle2, XCircle, AlertTriangle, Info } from 'lucide-react';
 
 const NotificationToast: React.FC = () => {
   const { notifications, removeNotification } = useUIStore();
@@ -9,15 +12,15 @@ const NotificationToast: React.FC = () => {
   const getIcon = (type: string) => {
     switch (type) {
       case 'success':
-        return '✅';
+        return <CheckCircle2 className="text-green-500 w-5 h-5" />;
       case 'error':
-        return '❌';
+        return <XCircle className="text-red-500 w-5 h-5" />;
       case 'warning':
-        return '⚠️';
+        return <AlertTriangle className="text-yellow-500 w-5 h-5" />;
       case 'info':
-        return 'ℹ️';
+        return <Info className="text-blue-500 w-5 h-5" />;
       default:
-        return 'ℹ️';
+        return <Info className="text-gray-500 w-5 h-5" />;
     }
   };
 

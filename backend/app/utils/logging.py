@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, Dict
 from pythonjsonlogger import jsonlogger
 import structlog
+import os
 
 from app.core.config import settings
 
@@ -28,12 +29,12 @@ class FlowgenixJSONFormatter(jsonlogger.JsonFormatter):
             log_record['level'] = record.levelname
 
 
-def setup_logging() -> logging.Logger:
+def setup_logging(log_level: str = "INFO") -> logging.Logger:
     """Setup structured logging for the application"""
     
     # Create logger
     logger = logging.getLogger("flowgenix")
-    logger.setLevel(getattr(logging, settings.log_level.upper()))
+    logger.setLevel(getattr(logging, log_level.upper()))
     
     # Remove existing handlers
     for handler in logger.handlers[:]:
@@ -46,6 +47,17 @@ def setup_logging() -> logging.Logger:
     )
     console_handler.setFormatter(json_formatter)
     logger.addHandler(console_handler)
+    
+    # File handler for logging to a file
+    try:
+        os.makedirs('/var/log/flowgenix', exist_ok=True)
+        file_handler = logging.FileHandler('/var/log/flowgenix/app.log')
+        file_handler.setFormatter(json_formatter)
+        logger.addHandler(file_handler)
+    except (PermissionError, OSError):
+        file_handler = logging.FileHandler('flowgenix.log')
+        file_handler.setFormatter(json_formatter)
+        logger.addHandler(file_handler)
     
     return logger
 
@@ -123,3 +135,55 @@ def log_document_upload(filename: str, user_id: str, status: str, file_size: int
         struct_logger.error("Document upload failed", **log_data)
     else:
         struct_logger.info("Document uploaded successfully", **log_data)
+
+
+def log_llm_request(provider: str, user_id: str, status: str, duration: float = None, tokens: int = None, error: str = None):
+    """Log LLM request events"""
+    log_data = {
+        "provider": provider,
+        "user_id": user_id,
+        "status": status,
+        "event_type": "llm_request"
+    }
+    
+    if duration is not None:
+        log_data["duration_ms"] = duration * 1000
+    
+    if tokens is not None:
+        log_data["tokens"] = tokens
+    
+    if error:
+        log_data["error"] = error
+        struct_logger.error("LLM request failed", **log_data)
+    else:
+        struct_logger.info("LLM request completed", **log_data)
+
+
+def log_websocket_event(event_type: str, connection_id: str, user_id: str = None, data: Dict[str, Any] = None):
+    """Log WebSocket events"""
+    log_data = {
+        "event_type": "websocket_event",
+        "websocket_event": event_type,
+        "connection_id": connection_id
+    }
+    
+    if user_id:
+        log_data["user_id"] = user_id
+    if data:
+        log_data.update(data)
+    
+    struct_logger.info("WebSocket event", **log_data)
+
+
+def log_error(error: Exception, context: Dict[str, Any] = None):
+    """Log error events"""
+    log_data = {
+        "error_type": type(error).__name__,
+        "error_message": str(error),
+        "event_type": "application_error"
+    }
+    
+    if context:
+        log_data["context"] = context
+    
+    struct_logger.error("Application error occurred", **log_data, exc_info=True)

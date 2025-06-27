@@ -37,17 +37,53 @@ class WorkflowUpdate(BaseModel):
 
 
 class WorkflowResponse(WorkflowBase):
-    id: int
-    user_id: int
+    id: str
+    user_id: str  # changed from int to str for UUID
     created_at: datetime
     updated_at: datetime
+    status: Optional[str] = "draft"  # draft, ready, running, paused, completed, failed
     
     class Config:
         from_attributes = True
+        json_encoders = {__import__('uuid').UUID: str}
 
 
-class WorkflowExecutionRequest(BaseModel):
-    workflow: WorkflowBase
+class WorkflowBuildRequest(BaseModel):
+    nodes: List[WorkflowNodeBase]
+    edges: List[WorkflowEdgeBase]
+
+
+class WorkflowBuildResponse(BaseModel):
+    success: bool
+    message: str
+    errors: Optional[List[str]] = None
+    execution_plan: Optional[Dict[str, Any]] = None
+
+
+class WorkflowExecuteRequest(BaseModel):
+    query: str
+
+
+class WorkflowExecuteResponse(BaseModel):
+    execution_id: str
+    status: str
+    result: Optional[Dict[str, Any]] = None
+    message: str
+
+
+class ValidationResult(BaseModel):
+    is_valid: bool
+    errors: List[str] = []
+    warnings: List[str] = []
+
+
+class DocumentUploadResponse(BaseModel):
+    id: str
+    filename: str
+    size: int
+    content_type: str
+    processed: bool
+    embeddings_count: Optional[int] = None
     query: str
     search_provider: Optional[str] = "brave"
 

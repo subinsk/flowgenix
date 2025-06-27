@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { authService } from '../../services/authService';
-import { Button } from '../../shared/components';
+import { authService } from '@/services';
+import { Button } from '@/components/ui';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');

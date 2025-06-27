@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Settings, Trash2, Upload, Download, HelpCircle, Eye, EyeOff } from 'lucide-react';
-import { Button } from '../shared/components';
+import { X, Settings, Trash2, Upload, Download, HelpCircle, Eye, EyeOff, Key } from 'lucide-react';
+import { Button } from '@/components/ui';
+import ApiKeyManager from './ApiKeyManager';
+import { apiKeyService } from '@/services/apiKeyService';
 
 interface NodeConfigurationPanelProps {
   selectedNode: any;
@@ -21,7 +23,8 @@ const predefinedConfigs = {
   knowledgeBase: [
     { name: 'OpenAI Embeddings', model: 'text-embedding-ada-002', chunkSize: 1000 },
     { name: 'High Quality Embeddings', model: 'text-embedding-3-large', chunkSize: 500 },
-    { name: 'Fast Embeddings', model: 'text-embedding-3-small', chunkSize: 1500 }
+    { name: 'Fast Embeddings', model: 'text-embedding-3-small', chunkSize: 1500 },
+    { name: 'MiniLM (HuggingFace)', model: 'all-MiniLM-L6-v2', chunkSize: 1000 }
   ],
   llmEngine: [
     { name: 'GPT-4 Creative', model: 'GPT-4', temperature: 0.9, maxTokens: 2000 },
@@ -44,6 +47,29 @@ export default function NodeConfigurationPanel({
   const [config, setConfig] = useState(selectedNode?.data || {});
   const [showApiKey, setShowApiKey] = useState(false);
   const [showSerpKey, setShowSerpKey] = useState(false);
+  const [showApiKeyManager, setShowApiKeyManager] = useState(false);
+  const [hasStoredKeys, setHasStoredKeys] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    // Check for stored API keys
+    const checkStoredKeys = async () => {
+      const keyChecks = await Promise.all([
+        apiKeyService.hasApiKey('openai'),
+        apiKeyService.hasApiKey('serpapi'),
+        apiKeyService.hasApiKey('brave'),
+        apiKeyService.hasApiKey('huggingface')
+      ]);
+      
+      setHasStoredKeys({
+        openai: keyChecks[0],
+        serpapi: keyChecks[1],
+        brave: keyChecks[2],
+        huggingface: keyChecks[3]
+      });
+    };
+
+    checkStoredKeys();
+  }, [showApiKeyManager]); // Refresh when API key manager is closed
 
   if (!selectedNode) return null;
 
@@ -147,6 +173,7 @@ export default function NodeConfigurationPanel({
           <option value="text-embedding-ada-002">text-embedding-ada-002</option>
           <option value="text-embedding-3-small">text-embedding-3-small</option>
           <option value="text-embedding-3-large">text-embedding-3-large</option>
+          <option value="all-MiniLM-L6-v2">all-MiniLM-L6-v2 (HuggingFace)</option>
         </select>
       </div>
 
@@ -166,14 +193,31 @@ export default function NodeConfigurationPanel({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2">
-          API Key
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-sm font-medium text-foreground">
+            API Key
+          </label>
+          <div className="flex items-center gap-2">
+            {hasStoredKeys.openai && (
+              <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                ✓ Stored
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowApiKeyManager(true)}
+              className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+            >
+              <Key size={12} />
+              Manage Keys
+            </button>
+          </div>
+        </div>
         <div className="relative">
           <input
             type={showApiKey ? "text" : "password"}
             className="w-full p-3 pr-10 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            placeholder="Enter API key..."
+            placeholder={hasStoredKeys.openai ? "Using stored key (leave blank)" : "Enter API key..."}
             value={config.apiKey || ''}
             onChange={(e) => handleConfigChange('apiKey', e.target.value)}
           />
@@ -185,6 +229,11 @@ export default function NodeConfigurationPanel({
             {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
+        {hasStoredKeys.openai && !config.apiKey && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Will use your stored OpenAI API key
+          </p>
+        )}
       </div>
     </div>
   );
@@ -259,14 +308,31 @@ export default function NodeConfigurationPanel({
 
       {config.webSearchEnabled && (
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
-            SERP API Key
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-foreground">
+              SERP API Key
+            </label>
+            <div className="flex items-center gap-2">
+              {hasStoredKeys.serpapi && (
+                <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                  ✓ Stored
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowApiKeyManager(true)}
+                className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+              >
+                <Key size={12} />
+                Manage Keys
+              </button>
+            </div>
+          </div>
           <div className="relative">
             <input
               type={showSerpKey ? "text" : "password"}
               className="w-full p-3 pr-10 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="Enter SERP API key..."
+              placeholder={hasStoredKeys.serpapi ? "Using stored key (leave blank)" : "Enter SERP API key..."}
               value={config.serpApiKey || ''}
               onChange={(e) => handleConfigChange('serpApiKey', e.target.value)}
             />
@@ -278,18 +344,40 @@ export default function NodeConfigurationPanel({
               {showSerpKey ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
+          {hasStoredKeys.serpapi && !config.serpApiKey && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Will use your stored SerpAPI key
+            </p>
+          )}
         </div>
       )}
 
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2">
-          API Key
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-sm font-medium text-foreground">
+            API Key
+          </label>
+          <div className="flex items-center gap-2">
+            {hasStoredKeys.openai && (
+              <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                ✓ Stored
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowApiKeyManager(true)}
+              className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+            >
+              <Key size={12} />
+              Manage Keys
+            </button>
+          </div>
+        </div>
         <div className="relative">
           <input
             type={showApiKey ? "text" : "password"}
             className="w-full p-3 pr-10 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            placeholder="Enter API key..."
+            placeholder={hasStoredKeys.openai ? "Using stored key (leave blank)" : "Enter API key..."}
             value={config.apiKey || ''}
             onChange={(e) => handleConfigChange('apiKey', e.target.value)}
           />
@@ -301,6 +389,11 @@ export default function NodeConfigurationPanel({
             {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
+        {hasStoredKeys.openai && !config.apiKey && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Will use your stored OpenAI API key
+          </p>
+        )}
       </div>
     </div>
   );
@@ -503,6 +596,12 @@ export default function NodeConfigurationPanel({
           </div>
         </motion.div>
       </motion.div>
+
+      {/* API Key Manager Modal */}
+      <ApiKeyManager 
+        isOpen={showApiKeyManager} 
+        onClose={() => setShowApiKeyManager(false)} 
+      />
     </AnimatePresence>
   );
 }

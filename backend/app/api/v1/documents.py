@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
+import os
 
 from app.core.database import get_db
 from app.schemas.document import (
@@ -11,7 +13,9 @@ from app.schemas.document import (
 )
 from app.services.document_service import DocumentService
 from app.models.user import User
+from app.models.document import Document
 from app.utils.dependencies import get_current_user
+from app.core.config import settings
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -108,3 +112,37 @@ async def search_documents(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Search failed: {str(e)}"
         )
+
+
+@router.get("/{document_id}/download")
+async def download_document(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Download a document file"""
+    # Get document from database
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == current_user.id
+    ).first()
+    
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found"
+        )
+    
+    # Check if file exists
+    if not os.path.exists(document.file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found on disk"
+        )
+    
+    # Return file response
+    return FileResponse(
+        path=document.file_path,
+        filename=document.filename,
+        media_type=document.content_type or 'application/octet-stream'
+    )

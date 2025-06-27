@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { authService } from '../../services/authService';
-import { Button } from '../../shared/components';
+import { Button } from '@/components/ui';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');

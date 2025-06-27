@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import ReactFlow, {
+import {
+  ReactFlow,
   MiniMap,
   Controls,
   Background,
@@ -10,11 +11,11 @@ import ReactFlow, {
   Edge,
   Node,
   BackgroundVariant,
-} from 'reactflow';
+} from '@xyflow/react';
 import { motion } from 'framer-motion';
-import 'reactflow/dist/style.css';
+import '@xyflow/react/dist/style.css';
 import { useWorkflowStore } from '../../store/workflow';
-import { ANIMATIONS } from '../../shared/constants';
+import { ANIMATIONS } from '../../constants';
 import type { WorkflowNode, WorkflowEdge } from '../../shared/types';
 
 const initialNodes: Node[] = [];

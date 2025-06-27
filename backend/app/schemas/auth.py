@@ -18,12 +18,13 @@ class UserLogin(BaseModel):
 
 
 class UserResponse(UserBase):
-    id: int
+    id: str  # changed from int to str for UUID
     is_active: bool
     created_at: datetime
     
     class Config:
         from_attributes = True
+        json_encoders = {__import__('uuid').UUID: str}
 
 
 class Token(BaseModel):

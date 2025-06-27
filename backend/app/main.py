@@ -1,7 +1,9 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import time
+import os
 from datetime import datetime
 
 from app.core.config import settings
@@ -21,6 +23,10 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Flowgenix application")
     init_db()
     logger.info("Database initialized")
+    
+    # Ensure upload directory exists
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    logger.info(f"Upload directory ensured: {settings.upload_dir}")
     
     yield
     
@@ -70,6 +76,11 @@ app.add_middleware(
 # Include API routes
 app.include_router(api_router)
 
+# Mount static files for uploaded documents
+if os.path.exists(settings.upload_dir):
+    app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
+    logger.info(f"Static file serving enabled for uploads at /uploads -> {settings.upload_dir}")
+
 
 @app.get("/")
 async def root():
@@ -112,6 +123,14 @@ async def get_metrics():
         )
     else:
         return {"message": "Metrics disabled"}
+
+
+# Serve static files
+app.mount(
+    "/uploads",
+    StaticFiles(directory=settings.upload_dir),
+    name="uploads"
+)
 
 
 if __name__ == "__main__":

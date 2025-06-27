@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useClickOutside } from '../hooks';
-import { ANIMATIONS } from '../constants';
+import { useClickOutside } from '../../hooks';
+import { ANIMATIONS } from '../../constants';
 import type { ModalProps } from '../types';
 
 interface ExtendedModalProps extends ModalProps {

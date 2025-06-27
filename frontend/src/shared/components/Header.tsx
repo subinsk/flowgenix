@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/auth';
 import { useUIStore } from '../../store/ui';
 import { Button } from '../../shared/components';
-import { ANIMATIONS } from '../../shared/constants';
+import { ANIMATIONS } from '../../constants';
 
 const ModernHeader: React.FC = () => {
   const { user, logout } = useAuthStore();

@@ -1,26 +1,30 @@
 import httpx
 from typing import Dict, Any, List
-from app.core.config import settings
 
 
 class SearchService:
-    def __init__(self):
-        self.brave_api_key = settings.brave_api_key
-        self.serpapi_key = settings.serpapi_key
+    async def search(self, query: str, provider: str = "brave", num_results: int = 5, api_key: str = None) -> List[Dict[str, Any]]:
+        """Perform web search using specified provider and return results list"""
+        search_result = await self._search_internal(query, provider, num_results, api_key)
+        
+        if "error" in search_result:
+            return []
+        
+        return search_result.get("results", [])
 
-    async def search(self, query: str, provider: str = "brave", limit: int = 5) -> Dict[str, Any]:
-        """Perform web search using specified provider"""
+    async def _search_internal(self, query: str, provider: str = "brave", limit: int = 5, api_key: str = None) -> Dict[str, Any]:
+        """Internal search method that returns full response"""
         if provider == "brave":
-            return await self._brave_search(query, limit)
+            return await self._brave_search(query, limit, api_key)
         elif provider == "serpapi":
-            return await self._serpapi_search(query, limit)
+            return await self._serpapi_search(query, limit, api_key)
         else:
             return {"error": f"Unknown search provider: {provider}"}
 
-    async def _brave_search(self, query: str, limit: int) -> Dict[str, Any]:
+    async def _brave_search(self, query: str, limit: int, api_key: str = None) -> Dict[str, Any]:
         """Search using Brave Search API"""
-        if not self.brave_api_key:
-            return {"error": "Brave API key not configured"}
+        if not api_key:
+            return {"error": "Brave API key not provided in node data"}
 
         try:
             async with httpx.AsyncClient() as client:
@@ -28,7 +32,7 @@ class SearchService:
                     "https://api.search.brave.com/res/v1/web/search",
                     headers={
                         "Accept": "application/json",
-                        "X-Subscription-Token": self.brave_api_key
+                        "X-Subscription-Token": api_key
                     },
                     params={
                         "q": query,
@@ -62,10 +66,10 @@ class SearchService:
         except Exception as e:
             return {"error": f"Brave search error: {str(e)}"}
 
-    async def _serpapi_search(self, query: str, limit: int) -> Dict[str, Any]:
+    async def _serpapi_search(self, query: str, limit: int, api_key: str = None) -> Dict[str, Any]:
         """Search using SerpAPI"""
-        if not self.serpapi_key:
-            return {"error": "SerpAPI key not configured"}
+        if not api_key:
+            return {"error": "SerpAPI key not provided in node data"}
 
         try:
             async with httpx.AsyncClient() as client:
@@ -73,7 +77,7 @@ class SearchService:
                     "https://serpapi.com/search",
                     params={
                         "q": query,
-                        "api_key": self.serpapi_key,
+                        "api_key": api_key,
                         "engine": "google",
                         "num": limit,
                         "gl": "us",
@@ -105,11 +109,11 @@ class SearchService:
         except Exception as e:
             return {"error": f"SerpAPI search error: {str(e)}"}
 
-    def get_available_providers(self) -> List[str]:
-        """Get list of available search providers"""
+    def get_available_providers(self, brave_api_key: str = None, serpapi_key: str = None) -> List[str]:
+        """Get list of available search providers based on provided keys"""
         providers = []
-        if self.brave_api_key:
+        if brave_api_key:
             providers.append("brave")
-        if self.serpapi_key:
+        if serpapi_key:
             providers.append("serpapi")
         return providers
