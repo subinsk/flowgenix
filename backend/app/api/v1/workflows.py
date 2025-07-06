@@ -310,8 +310,13 @@ async def upload_documents(
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
+    # Save provided API key for future use if present
+    if api_key:
+        key_name = "huggingface" if embedding_model == "all-MiniLM-L6-v2" else "openai"
+        api_key_data = ApiKeyCreate(key_name=key_name, api_key=api_key)
+        api_key_service.create_api_key(str(current_user.id), api_key_data)
+
     # Get stored API keys as fallback
-    api_key_service = ApiKeyService(db)
     stored_api_key = None
     if not api_key:
         # Determine which API key to use based on embedding model

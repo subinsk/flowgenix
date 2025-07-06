@@ -196,11 +196,15 @@ export const STATUS_MAP: Record<string, { label: string; color: string }> = {
   },
   ready: {
     label: 'Ready',
-    color: 'bg-blue-100 text-blue-700 border-blue-200',
+    color: 'bg-green-100 text-green-700 border-green-200',
+  },
+  built: {
+    label: 'Ready',
+    color: 'bg-green-100 text-green-700 border-green-200',
   },
   running: {
     label: 'Running',
-    color: 'bg-gray-700 text-white border-gray-700',
+    color: 'bg-blue-100 text-blue-700 border-blue-200',
   },
   paused: {
     label: 'Paused',

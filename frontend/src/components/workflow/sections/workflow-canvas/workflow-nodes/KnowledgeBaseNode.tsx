@@ -113,6 +113,17 @@ export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
     }
   };
 
+  const handleRemoveDocument = (e: React.MouseEvent, documentId: string) => {
+    e.stopPropagation();
+    const updatedDocuments = uploadedDocuments.filter((doc: any) => doc.id !== documentId);
+    data?.onUpdate?.(id, { 
+      data: { 
+        ...data, 
+        uploadedDocuments: updatedDocuments
+      } 
+    });
+  };
+
   return (
     <NodeWrapper
       type="knowledgeBase"
@@ -205,17 +216,34 @@ export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
                       {doc.filename}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {doc.file_size ? Math.round(doc.file_size / 1024) + 'KB' : ''}
+                      {doc.file_size ? (
+                        doc.file_size < 1024 
+                          ? `${doc.file_size}B` 
+                          : doc.file_size < 1024 * 1024
+                            ? `${Math.ceil(doc.file_size / 1024)}KB`
+                            : `${(doc.file_size / (1024 * 1024)).toFixed(1)}MB`
+                      ) : ''}
                     </span>
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-primary"
-                      onClick={() => handleDownloadDocument(doc.id, doc.filename)}
-                      aria-label="Download file"
-                      title="Download file"
-                    >
-                      <Download size={12} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-primary"
+                        onClick={() => handleDownloadDocument(doc.id, doc.filename)}
+                        aria-label="View/Download file"
+                        title="View/Download file"
+                      >
+                        <Eye size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={(e) => handleRemoveDocument(e, doc.id)}
+                        aria-label="Remove file"
+                        title="Remove file"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

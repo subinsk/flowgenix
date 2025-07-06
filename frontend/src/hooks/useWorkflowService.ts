@@ -7,7 +7,7 @@ interface WorkflowData {
   id: string;
   name: string;
   description: string;
-  status: 'draft' | 'running' | 'paused'; // removed 'ready'
+  status: 'draft' | 'ready' | 'running' | 'paused';
   lastModified: string;
 }
 
@@ -111,7 +111,7 @@ export function useWorkflowService(workflowId: string) {
       
       if (buildResponse.success) {
         showSuccess('Build Complete', buildResponse.message);
-        setWorkflow(prev => ({ ...prev, status: 'running' })); // set to 'running' instead of 'ready'
+        setWorkflow(prev => ({ ...prev, status: 'ready' })); // set to 'ready' after successful build
         setShowValidationErrors(false);
       } else {
         showError('Build Failed', buildResponse.message);

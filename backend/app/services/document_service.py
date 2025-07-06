@@ -9,6 +9,7 @@ import chromadb
 from app.models.document import Document
 from app.schemas.document import DocumentCreate
 from app.services.ai_service import AIService
+from app.services.api_key_service import ApiKeyService
 from app.core.config import settings
 
 
@@ -21,11 +22,12 @@ class DocumentService:
             port=settings.chroma_port
         )
         self.collection_name = "documents"
+        self.api_key_service = ApiKeyService(db) if db else None
         
         # Ensure upload directory exists
         os.makedirs(self.upload_dir, exist_ok=True)
 
-    async def upload_document(self, file: UploadFile, user_id: str) -> Document:
+    async def upload_document(self, file: UploadFile, user_id: str, embedding_model: str = "text-embedding-ada-002", api_key: str = None) -> Document:
         """Upload and process document"""
         # Validate file type
         if not self._is_valid_file_type(file.filename):
@@ -58,8 +60,8 @@ class DocumentService:
             self.db.commit()
             self.db.refresh(db_document)
 
-        # Process document asynchronously
-        await self._process_document(db_document)
+        # Process document asynchronously with specified model and API key
+        await self._process_document(db_document, embedding_model, api_key)
 
         return db_document
 
@@ -101,9 +103,19 @@ class DocumentService:
         try:
             # Extract text
             text = await self._extract_text_from_file(document.file_path)
+            
+            # Get API key if not provided
+            final_api_key = api_key
+            if not final_api_key and self.api_key_service and document.user_id:
+                # Determine which API key to use based on embedding model
+                if embedding_model == "all-MiniLM-L6-v2":
+                    final_api_key = self.api_key_service.get_decrypted_api_key(str(document.user_id), "huggingface")
+                else:
+                    final_api_key = self.api_key_service.get_decrypted_api_key(str(document.user_id), "openai")
+            
             # Generate embeddings with model and key
             ai_service = AIService()
-            embeddings = await ai_service.generate_embeddings(text, model=embedding_model, api_key=api_key)
+            embeddings = await ai_service.generate_embeddings(text, model=embedding_model, api_key=final_api_key)
             if embeddings:
                 # Store in ChromaDB
                 collection = self._get_or_create_collection()
@@ -118,19 +130,37 @@ class DocumentService:
                     ids=[str(document.id)],
                     embeddings=[embeddings]
                 )
-            # Mark as processed
-            if self.db:
-                document.processed = True
-                self.db.commit()
+                # Mark as processed only if embeddings were successfully generated and stored
+                if self.db:
+                    document.processed = True
+                    self.db.commit()
+                print(f"Successfully processed document {document.id} with {embedding_model}")
+            else:
+                # Don't mark as processed if embedding generation failed
+                print(f"Failed to generate embeddings for document {document.id} using {embedding_model}")
+                if embedding_model == "all-MiniLM-L6-v2" and final_api_key:
+                    print("Note: HuggingFace sentence-transformers models currently have issues with the Inference API")
+                    print("Consider using OpenAI embeddings (text-embedding-ada-002) as an alternative")
+                elif not final_api_key:
+                    print(f"No API key available for {embedding_model}")
         except Exception as e:
             print(f"Error processing document {document.id}: {str(e)}")
+            # Don't mark as processed if there was an error
 
-    async def search_documents_by_user(self, query: str, user_id: str, limit: int = 5) -> List[Dict[str, Any]]:
+    async def search_documents_by_user(self, query: str, user_id: str, limit: int = 5, embedding_model: str = "all-MiniLM-L6-v2") -> List[Dict[str, Any]]:
         """Search documents using vector similarity"""
         try:
-            # Generate query embedding
+            # Generate query embedding using the same model as documents
             ai_service = AIService()
-            query_embedding = await ai_service.generate_embeddings(query)
+            
+            # Get API key if needed
+            api_key = None
+            if self.api_key_service and embedding_model == "all-MiniLM-L6-v2":
+                api_key = self.api_key_service.get_decrypted_api_key(user_id, "huggingface")
+            elif self.api_key_service and embedding_model.startswith("text-embedding"):
+                api_key = self.api_key_service.get_decrypted_api_key(user_id, "openai")
+            
+            query_embedding = await ai_service.generate_embeddings(query, model=embedding_model, api_key=api_key)
             
             if not query_embedding:
                 return []

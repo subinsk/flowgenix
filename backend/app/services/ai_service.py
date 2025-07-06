@@ -1,4 +1,5 @@
 import httpx
+import asyncio
 from typing import Optional, Dict, Any, List
 
 
@@ -137,27 +138,103 @@ class AIService:
     async def generate_embeddings(self, text: str, model: str = "text-embedding-ada-002", api_key: Optional[str] = None) -> Optional[list]:
         """Generate embeddings for text, supporting OpenAI, Gemini, and Hugging Face MiniLM."""
         if model == "all-MiniLM-L6-v2":
-            # Hugging Face Inference API
+            # Hugging Face Inference API - using sentence-transformers
             if not api_key:
                 return None
-            url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
-            headers = {"Authorization": f"Bearer {api_key}"}
+            url = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+        if model == "all-MiniLM-L6-v2":
+            # Hugging Face Inference API - Free tier with read permissions
+            if not api_key:
+                return None
+            
+            # Try different models that work well with free tier feature extraction
+            models_to_try = [
+                "BAAI/bge-base-en-v1.5",  # Popular feature extraction model
+                "sentence-transformers/all-MiniLM-L6-v2",  # Original choice
+                "thenlper/gte-small"  # Another good option
+            ]
+            
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            for model_name in models_to_try:
+                print(f"Trying model: {model_name}")
+                url = f"https://api-inference.huggingface.co/models/{model_name}"
+                
+                try:
+                    async with httpx.AsyncClient(timeout=60.0) as client:
+                        # Use simple format for free tier
+                        payload = {"inputs": text}
+                        
+                        response = await client.post(url, headers=headers, json=payload)
+                        
+                        if response.status_code == 200:
+                            data = response.json()
+                            # HF returns array of arrays for feature extraction
+                            if isinstance(data, list) and len(data) > 0:
+                                result = data[0] if isinstance(data[0], list) else data
+                                print(f"✓ Success with {model_name}")
+                                return result
+                            return data
+                        elif response.status_code == 503:
+                            # Model is loading (common on free tier), wait and retry
+                            print(f"Model {model_name} is loading, waiting 20 seconds...")
+                            await asyncio.sleep(20)
+                            response = await client.post(url, headers=headers, json=payload)
+                            if response.status_code == 200:
+                                data = response.json()
+                                if isinstance(data, list) and len(data) > 0:
+                                    result = data[0] if isinstance(data[0], list) else data
+                                    print(f"✓ Success with {model_name} after retry")
+                                    return result
+                                return data
+                        elif response.status_code == 429:
+                            # Rate limit exceeded (free tier limitation)
+                            print(f"Rate limit exceeded for {model_name}. Trying next model...")
+                            continue
+                        else:
+                            print(f"Model {model_name} failed with {response.status_code}: {response.text}")
+                            continue
+                            
+                except Exception as e:
+                    print(f"Exception with {model_name}: {str(e)}")
+                    continue
+            
+            print("All models failed to generate embeddings")
+            return None
+        elif model.startswith("text-embedding"):
+            # OpenAI Embeddings API
+            if not api_key:
+                return None
             try:
                 async with httpx.AsyncClient() as client:
-                    response = await client.post(url, headers=headers, json={"inputs": text})
+                    response = await client.post(
+                        f"{self.openai_base_url}/embeddings",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": model,
+                            "input": text
+                        }
+                    )
                     if response.status_code == 200:
                         data = response.json()
-                        # Hugging Face returns [ [embedding floats] ]
-                        if isinstance(data, list) and isinstance(data[0], list):
-                            return data[0]
-                        return data
+                        return data["data"][0]["embedding"]
                     else:
-                        print(f"Hugging Face API error: {response.status_code}", response.text)
+                        print(f"OpenAI Embeddings API error: {response.status_code}", response.text)
                         return None
             except Exception as e:
-                print(f"Hugging Face API error: {str(e)}")
+                print(f"OpenAI Embeddings API error: {str(e)}")
                 return None
-        # TODO: Add OpenAI and Gemini embedding logic as needed
+        
         return None
 
     async def analyze_document(self, text: str) -> Dict[str, Any]:

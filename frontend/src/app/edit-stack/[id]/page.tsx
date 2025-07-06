@@ -14,6 +14,7 @@ import { UserQueryNode, KnowledgeBaseNode, LLMEngineNode, OutputNode } from '@/c
 import WorkflowCanvas from '@/components/workflow/sections/workflow-canvas/WorkflowCanvas';
 import NodeConfigurationPanel from '@/components/NodeConfigurationPanel';
 import { useChatStore } from '@/store/chat';
+import { useWorkflowStore } from '@/store/workflow';
 import { chatService } from '@/services/chatService';
 
 import WorkflowHeader from '@/components/workflow/sections/WorkflowHeader';
@@ -48,7 +49,7 @@ const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
 
 // Type guard for allowed workflow statuses
-const allowedStatuses = ['draft', 'running', 'paused'] as const;
+const allowedStatuses = ['draft', 'running', 'paused', 'ready'] as const;
 type AllowedWorkflowStatus = typeof allowedStatuses[number];
 const isAllowedWorkflowStatus = (status: any): status is AllowedWorkflowStatus =>
   allowedStatuses.includes(status);
@@ -84,6 +85,7 @@ export default function EditStackPage() {
 
   const { isWorkflowValid, validationErrors, validateWorkflow, triggerValidation, clearValidationError, hasValidated } = useWorkflowValidation(nodes, edges);
   const { isBuilding, saveWorkflow, buildWorkflow, executeWorkflow } = useWorkflowService(workflow.id);
+  const { hasUnsavedChanges, setLastSaveTime, setHasUnsavedChanges, setNodes: setWorkflowNodes, setEdges: setWorkflowEdges, loadNodes: loadWorkflowNodes, loadEdges: loadWorkflowEdges } = useWorkflowStore();
 
   const {
     currentSession,
@@ -147,10 +149,14 @@ export default function EditStackPage() {
       setEdges(prevState.edges);
       setHistoryIndex(prevIndex);
       
-      // Reset flag after state updates
-      setTimeout(() => setIsHistoryAction(false), 0);
+      // Reset flag and sync with workflow store after state updates
+      setTimeout(() => {
+        setIsHistoryAction(false);
+        setWorkflowNodes(prevState.nodes);
+        setWorkflowEdges(prevState.edges);
+      }, 0);
     }
-  }, [history, historyIndex, setNodes, setEdges]);
+  }, [history, historyIndex, setNodes, setEdges, setWorkflowNodes, setWorkflowEdges]);
 
   const handleRedo = useCallback(() => {
     if (historyIndex < history.length - 1) {
@@ -162,10 +168,14 @@ export default function EditStackPage() {
       setEdges(nextState.edges);
       setHistoryIndex(nextIndex);
       
-      // Reset flag after state updates
-      setTimeout(() => setIsHistoryAction(false), 0);
+      // Reset flag and sync with workflow store after state updates
+      setTimeout(() => {
+        setIsHistoryAction(false);
+        setWorkflowNodes(nextState.nodes);
+        setWorkflowEdges(nextState.edges);
+      }, 0);
     }
-  }, [history, historyIndex, setNodes, setEdges]);
+  }, [history, historyIndex, setNodes, setEdges, setWorkflowNodes, setWorkflowEdges]);
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
@@ -185,6 +195,16 @@ export default function EditStackPage() {
       setHistoryIndex(0);
     }
   }, [nodes, edges, history.length]);
+
+  // Sync nodes and edges with workflow store for user modifications
+  // This effect runs when nodes/edges change due to user interactions
+  useEffect(() => {
+    // Only sync to workflow store if this is not a history action and not initial load
+    if (!isHistoryAction && history.length > 0) {
+      setWorkflowNodes(nodes);
+      setWorkflowEdges(edges);
+    }
+  }, [nodes, edges, isHistoryAction, history.length, setWorkflowNodes, setWorkflowEdges]);
 
   // Auto-save to history with debouncing - only when not applying history actions
   useEffect(() => {
@@ -207,7 +227,7 @@ export default function EditStackPage() {
     }, 500); // Reduced debounce time for better responsiveness
 
     return () => clearTimeout(timer);
-  }, [nodes, edges, history, historyIndex, saveToHistory, isHistoryAction]);
+  }, [nodes, edges, history, historyIndex, saveToHistory, isHistoryAction, setWorkflowNodes, setWorkflowEdges]);
 
   const loadWorkflow = async () => {
     try {
@@ -243,10 +263,16 @@ export default function EditStackPage() {
           return node;
         });
         setNodes(updatedNodes);
+        loadWorkflowNodes(updatedNodes); // Load into workflow store without triggering unsaved changes
       }
       if (data.edges?.length > 0) {
         setEdges(data.edges);
+        loadWorkflowEdges(data.edges); // Load into workflow store without triggering unsaved changes
       }
+      
+      // Mark as saved since we just loaded from server
+      setLastSaveTime(new Date());
+      setHasUnsavedChanges(false); // Reset unsaved changes since we just loaded
     } catch (error) {
       console.error('Error loading workflow:', error);
       showError('Load Error', 'Failed to load workflow');
@@ -408,6 +434,8 @@ export default function EditStackPage() {
       // If build succeeds, show success message
       if (validationResult) {
         showSuccess('Build Successful', 'Your workflow has been built successfully!');
+        setLastSaveTime(new Date()); // Mark as saved since build saves the workflow
+        setHasUnsavedChanges(false); // Reset unsaved changes
       }
     } catch (error) {
       showError('Build Failed', 'Failed to build workflow. Please try again.');
@@ -416,6 +444,8 @@ export default function EditStackPage() {
 
   const handleSave = async () => {
     await saveWorkflow(workflow, nodes, edges, setWorkflow);
+    setLastSaveTime(new Date());
+    setHasUnsavedChanges(false); // Reset unsaved changes
   };
 
   // On chat open, load or create session for this workflow
@@ -683,6 +713,7 @@ export default function EditStackPage() {
 
             <WorkflowActionButtons
               isBuilding={isBuilding}
+              hasUnsavedChanges={hasUnsavedChanges}
               onBuild={handleBuildStack}
               onChat={() => setIsChatOpen(true)}
             />

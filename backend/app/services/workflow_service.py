@@ -288,11 +288,24 @@ class WorkflowService:
                         collection = self.document_service._get_or_create_collection()
                         query_embedding = None
                         
-                        # Try to get query embedding
+                        # Try to get query embedding - determine which embedding model and API key to use
+                        embedding_model = node_config.get("embeddingModel", "text-embedding-ada-002")
+                        embedding_api_key = None
+                        
+                        if embedding_model == "all-MiniLM-L6-v2":
+                            embedding_api_key = node_config.get("huggingfaceApiKey") or stored_api_keys.get("huggingface")
+                        else:
+                            embedding_api_key = node_config.get("openaiApiKey") or stored_api_keys.get("openai")
+                        
                         try:
                             from app.services.ai_service import AIService
                             ai_service = AIService()
-                            query_embedding = await ai_service.generate_embeddings(current_output)
+                            if embedding_api_key:
+                                query_embedding = await ai_service.generate_embeddings(
+                                    current_output, 
+                                    model=embedding_model, 
+                                    api_key=embedding_api_key
+                                )
                         except Exception as e:
                             print(f"Warning: Could not generate embeddings: {e}")
                         
@@ -352,16 +365,15 @@ class WorkflowService:
                             ])
                             system_prompt += f"\n\nCurrent web search results for the query:\n{formatted_results}"
                 
-                messages = [
-                    {"role": "system", "content": system_prompt}
-                ]
+                # Add document context to system prompt if available
                 if "knowledge_context" in context:
-                    context_content = "\n".join([doc.get("content", "") for doc in context["knowledge_context"]])
-                    messages.append({
-                        "role": "system",
-                        "content": f"Use the following context to answer the user's question:\n\n{context_content}"
-                    })
-                messages.append({"role": "user", "content": current_output})
+                    context_content = "\n\n".join(context["knowledge_context"])
+                    system_prompt += f"\n\nRelevant information from uploaded documents:\n{context_content}\n\nPlease use the above document content to answer the user's question accurately."
+                
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": current_output}
+                ]
                 response = await self.ai_service.generate_response(
                     messages=messages,
                     model=model,

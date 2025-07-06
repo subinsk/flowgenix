@@ -4,6 +4,7 @@ import React from 'react';
 import { ChevronLeft, AlertCircle, CheckCircle, Save, Undo, Redo } from 'lucide-react';
 import { NodeFieldError } from '@/hooks/useWorkflowValidation';
 import { Button } from '@/components/ui';
+import { STATUS_MAP } from '@/constants';
 
 interface WorkflowHeaderProps {
   workflow: {
@@ -60,18 +61,8 @@ export default function WorkflowHeader({
         <div className="flex items-center space-x-2">
           {/* Workflow Status Badge */}
           <div className="flex items-center gap-2">
-            <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-              workflow.status === 'ready' || workflow.status === 'built'
-                ? 'bg-green-100 text-green-700 border border-green-200'
-                : workflow.status === 'running'
-                ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                : workflow.status === 'failed'
-                ? 'bg-red-100 text-red-700 border border-red-200'
-                : 'bg-gray-100 text-gray-700 border border-gray-200'
-            }`}>
-              {workflow.status === 'ready' || workflow.status === 'built' ? 'Ready' : 
-               workflow.status === 'running' ? 'Running' :
-               workflow.status === 'failed' ? 'Failed' : 'Draft'}
+            <div className={`px-2 py-1 rounded-full text-xs font-medium border ${STATUS_MAP[workflow.status || 'draft']?.color || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+              {STATUS_MAP[workflow.status || 'draft']?.label || workflow.status || 'Draft'}
             </div>
           </div>
           
