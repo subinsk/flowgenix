@@ -62,7 +62,7 @@ See [Development Guide](docs/development/setup.md) for detailed local setup inst
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          │              ┌─────────────────┐              │
-         └──────────────►│   AI Services   │◄─────────────┘
+         └─────────────►│   AI Services   │◄─────────────┘
                         │  (Gemini API)   │
                         └─────────────────┘
 ```
