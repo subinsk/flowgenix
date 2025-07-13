@@ -11,13 +11,14 @@ import {
     FormControl,
     FormMessage,
     Input,
-    Textarea
+    Textarea,
+    Separator
 } from "@/components/ui";
 import { AnimatePresence } from "framer-motion";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useState, Dispatch, SetStateAction } from "react";
+import { useState, Dispatch, SetStateAction, useEffect } from "react";
 import { useNotifications } from "@/hooks";
 import { workflowService } from "@/services";
 import { DashboardWorkflow, Workflow, WorkflowStatus } from "@/types";
@@ -35,15 +36,22 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface CreateWorkflowModalProps {
-    isCreateModalOpen: boolean
-    selectedWorkflow?: Workflow | null;
-    setWorkflows: Dispatch<SetStateAction<DashboardWorkflow[]>>;
-    setIsCreateModalOpen: Dispatch<SetStateAction<boolean>>
+    mode?: 'create' | 'edit';
+    isModalOpen: boolean
+    selectedWorkflow?: {
+        id: string;
+        name: string;
+        description?: string;
+        status?: WorkflowStatus;
+    } | null;
+    setWorkflows?: Dispatch<SetStateAction<DashboardWorkflow[]>>;
+    setIsModalOpen: Dispatch<SetStateAction<boolean>>
+
 }
 
-export function CreateWorkflowModal({ isCreateModalOpen, setIsCreateModalOpen, setWorkflows, selectedWorkflow }: CreateWorkflowModalProps) {
+export function CreateWorkflowModal({ isModalOpen, setIsModalOpen, setWorkflows, selectedWorkflow, mode = "create" }: CreateWorkflowModalProps) {
     const { showSuccess, showError } = useNotifications();
-    const [createLoading, setCreateLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -54,106 +62,152 @@ export function CreateWorkflowModal({ isCreateModalOpen, setIsCreateModalOpen, s
     });
 
     const handleCreateWorkflow = async (values: FormValues) => {
-        setCreateLoading(true);
+        setSubmitting(true);
         try {
-            const newWorkflowData = {
-                name: values.workflowName.trim(),
-                description: values.workflowDescription?.trim() || undefined,
-                nodes: [],
-                edges: []
-            };
+            if (mode === 'create') {
+                const newWorkflowData = {
+                    name: values.workflowName.trim(),
+                    description: values.workflowDescription?.trim() || undefined,
+                    nodes: [],
+                    edges: []
+                };
 
-            const createdWorkflow = await workflowService.createWorkflow(newWorkflowData);
+                const createdWorkflow = await workflowService.createWorkflow(newWorkflowData);
 
-            const formattedWorkflow: DashboardWorkflow = {
-                id: createdWorkflow.id,
-                name: createdWorkflow.name,
-                description: createdWorkflow.description || 'No description',
-                createdAt: new Date(createdWorkflow.created_at).toLocaleDateString(),
-                updatedAt: new Date(createdWorkflow.updated_at).toLocaleDateString(),
-                status: STATUS_MAP[createdWorkflow.status as WorkflowStatus]?.label || 'unknown'
-            };
-            setWorkflows((prev: DashboardWorkflow[]) => [formattedWorkflow, ...prev]);
-            setIsCreateModalOpen(false);
-            form.reset();
-            showSuccess('Workflow Created', `"${formattedWorkflow.name}" has been created successfully!`);
+                const formattedWorkflow: DashboardWorkflow = {
+                    id: createdWorkflow.id,
+                    name: createdWorkflow.name,
+                    description: createdWorkflow.description || '',
+                    createdAt: new Date(createdWorkflow.created_at).toLocaleDateString(),
+                    updatedAt: new Date(createdWorkflow.updated_at).toLocaleDateString(),
+                    status: STATUS_MAP[createdWorkflow.status as WorkflowStatus]?.label || 'unknown'
+                };
+
+                if (setWorkflows)
+                    setWorkflows((prev: DashboardWorkflow[]) => [formattedWorkflow, ...prev]);
+
+                setIsModalOpen(false);
+                form.reset();
+                showSuccess('Workflow Created', `"${formattedWorkflow.name}" has been created successfully!`);
+            }
+            else if (mode === 'edit') {
+                if (!selectedWorkflow) {
+                    showError('Edit Error', 'No workflow selected for editing.');
+                    return;
+                }
+
+                const updatedWorkflowData = {
+                    ...selectedWorkflow,
+                    name: values.workflowName.trim(),
+                    description: values.workflowDescription?.trim() || selectedWorkflow.description,
+                };
+
+                const updatedWorkflow = await workflowService.updateWorkflow(selectedWorkflow.id, updatedWorkflowData);
+
+                const formattedUpdatedWorkflow: DashboardWorkflow = {
+                    id: updatedWorkflow.id,
+                    name: updatedWorkflow.name,
+                    description: updatedWorkflow.description || '',
+                    createdAt: new Date(updatedWorkflow.created_at).toLocaleDateString(),
+                    updatedAt: new Date(updatedWorkflow.updated_at).toLocaleDateString(),
+                    status: STATUS_MAP[updatedWorkflow.status as WorkflowStatus]?.label || 'unknown'
+                };
+
+                setIsModalOpen(false);
+                showSuccess('Workflow Updated', `"${formattedUpdatedWorkflow.name}" has been updated successfully!`);
+            }
         } catch (error) {
-            showError('Creation Failed', 'Failed to create workflow. Please try again.');
+            showError(`Workflow Error`, `Failed to ${mode === 'create' ? 'create' : 'update'} workflow`);
         } finally {
-            setCreateLoading(false);
+            setSubmitting(false);
+            form.reset();
         }
     };
 
+    useEffect(() => {
+        if (mode === 'edit' && selectedWorkflow) {
+            form.reset({
+                workflowName: selectedWorkflow.name,
+                workflowDescription: selectedWorkflow.description || '',
+            });
+        }
+    }, [mode, selectedWorkflow]);
+
     return (
         <AnimatePresence>
-            {isCreateModalOpen && (
-                <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-                    <DialogContent className="max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>Create New Workflow</DialogTitle>
+            {isModalOpen && (
+                <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                    <DialogContent className="max-w-md p-0 gap-0">
+                        <DialogHeader className="px-5 pt-5 pb-3">
+                            <DialogTitle>{mode === 'edit' ? 'Edit' : 'Create New'} Stack</DialogTitle>
                         </DialogHeader>
+                        <Separator />
                         <Form {...form}>
                             <form
                                 onSubmit={form.handleSubmit(handleCreateWorkflow)}
-                                className="space-y-4"
+                                className=""
                             >
-                                <FormField
-                                    control={form.control}
-                                    name="workflowName"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Workflow Name *</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    {...field}
-                                                    id="workflowName"
-                                                    placeholder="Enter workflow name..."
-                                                    required
-                                                    autoFocus
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="workflowDescription"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Description</FormLabel>
-                                            <FormControl>
-                                                <Textarea
-                                                    {...field}
-                                                    id="workflowDesc"
-                                                    placeholder="Describe what this workflow does..."
-                                                    rows={3}
-                                                    className="resize-none"
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <div className="flex space-x-3 pt-4 border-t border-border">
+                                <div className="px-5 py-5 space-y-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="workflowName"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Name</FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        {...field}
+                                                        id="workflowName"
+                                                        required
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="workflowDescription"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Description</FormLabel>
+                                                <FormControl>
+                                                    <Textarea
+                                                        {...field}
+                                                        id="workflowDesc"
+                                                        rows={10}
+                                                        className="resize-none"
+                                                        style={{
+                                                            height: "183px"
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                                <div className="flex justify-end w-auto space-x-3 py-4 px-4 border-t border-border">
                                     <Button
                                         type="button"
-                                        variant="outline"
+                                        variant="ghost"
                                         onClick={() => {
-                                            setIsCreateModalOpen(false);
+                                            setIsModalOpen(false);
                                             form.reset();
                                         }}
-                                        className="flex-1"
-                                        disabled={createLoading}
+                                        className=""
+                                        disabled={submitting}
                                     >
                                         Cancel
                                     </Button>
                                     <Button
                                         type="submit"
-                                        disabled={createLoading}
-                                        className="flex-1"
+                                        disabled={submitting}
+                                        className=""
                                     >
-                                        {createLoading ? 'Creating...' : 'Create Workflow'}
+                                        {
+                                            submitting ? 'Submitting...' : mode === 'edit' ? 'Update' : 'Create'
+                                        }
                                     </Button>
                                 </div>
                             </form>

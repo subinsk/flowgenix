@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { authService } from '../../services/authService';
 import { Button } from '@/components/ui';
+import { Logo } from '@/components/common/logo';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -39,25 +40,25 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       {/* Background decoration */}
       <div className="absolute inset-0 bg-muted/20" />
-      
-      <motion.div 
+
+      <motion.div
         initial={{ y: 20, opacity: 0, scale: 0.95 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
         className="relative max-w-md w-full bg-card border border-border rounded-xl shadow-lg p-8"
       >
         {/* Logo and Header */}
-        <div className="text-center mb-8">
-          <motion.div 
+        <div className="text-center mb-8 flex flex-col items-center">
+          <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="w-12 h-12 bg-primary text-primary-foreground rounded-xl flex items-center justify-center mx-auto mb-4 font-bold text-xl"
+            className='mb-6'
           >
-            F
+            <Logo type='dark' />
           </motion.div>
           <h1 className="text-2xl font-bold text-card-foreground mb-2">Welcome back</h1>
-          <p className="text-muted-foreground">Sign in to your Flowgenix account</p>
+          <p className="text-muted-foreground">Sign in to your AI Planet account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -127,7 +128,7 @@ export default function LoginPage() {
           </motion.div>
         </form>
 
-        <motion.div 
+        <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.6 }}
@@ -141,7 +142,7 @@ export default function LoginPage() {
               <span className="px-2 bg-card text-muted-foreground">Don't have an account?</span>
             </div>
           </div>
-          
+
           <div className="mt-4">
             <Link href="/register">
               <Button variant="outline" className="w-full">
@@ -152,7 +153,7 @@ export default function LoginPage() {
         </motion.div>
 
         {/* Back to home */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7 }}

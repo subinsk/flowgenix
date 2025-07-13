@@ -2,6 +2,10 @@ import { useState } from "react";
 import { NodeWrapper } from "@/components";
 import { Brain, Eye, EyeOff } from "lucide-react";
 import type { NodeFieldError } from "@/hooks";
+import { Icon as Iconify } from "@iconify/react";
+import { CustomHandle } from "./CustomHandle";
+import { Position } from "@xyflow/react";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue, Separator, Switch } from "@/components/ui";
 
 export const LLMEngineNode = ({ id, data, selected }: any) => {
   // Use the new error structure: { nodeId, nodeType, field, error }
@@ -14,7 +18,7 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
   const apiKeyErrors = nodeErrors.filter((err) => err.field === "apiKey");
   // Web search API key errors
   const serpKeyErrors = nodeErrors.filter((err) => err.field === "serpApiKey");
-  
+
   const [showApiKey, setShowApiKey] = useState(false);
   const [showSerpKey, setShowSerpKey] = useState(false);
 
@@ -28,33 +32,31 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
   const renderTokenizedSystemPrompt = () => {
     const basePrompt = data?.systemPrompt || "You are a helpful AI assistant.";
     const tokens = [];
-    
-    // Add the base editable prompt
+
     tokens.push({
       type: "editable",
       content: basePrompt,
       key: "base"
     });
-    
-    // Add connected entity tokens
+
     if (hasQuery) {
       tokens.push({
         type: "token",
         content: "Query Input",
         key: "query",
-        color: "bg-blue-100 text-blue-700 border-blue-200"
+        color: "text-blue-700"
       });
     }
-    
+
     if (hasContext) {
       tokens.push({
-        type: "token", 
+        type: "token",
         content: "Context Input",
         key: "context",
-        color: "bg-green-100 text-green-700 border-green-200"
+        color: "text-green-700"
       });
     }
-    
+
     return tokens;
   };
 
@@ -80,39 +82,45 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
       id={id}
       validationErrors={data?.validationErrors || []}
     >
+      <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+        <Iconify icon="lucide:sparkles" className="w-5 h-5 text-[#444444]/80" />
+        <h3 className="font-semibold text-foreground">LLM Engine</h3>
+      </div>
+      <div className="bg-[#EDF3FF] px-4 py-1.5 text-sm">
+        Run a query with LLM
+      </div>
       <div className="p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Brain className="w-5 h-5 text-purple-600" />
-          <h3 className="font-semibold text-foreground">LLM Engine</h3>
-        </div>
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Model</label>
-            <select
-              className={`w-full p-2 text-sm bg-input border rounded focus:ring-2 focus:ring-primary focus:border-transparent nodrag ${modelErrors.length > 0 ? "border-destructive ring-1 ring-destructive" : "border-border"}`}
+            <Select
               value={MODEL_NAME_MAP_REVERSE[data?.model] || data?.model || ''}
-              onChange={e => {
-                const uiValue = e.target.value;
+              onValueChange={(uiValue) => {
                 const backendValue = MODEL_NAME_MAP[uiValue] || uiValue;
                 data?.onUpdate?.(id, { data: { ...data, model: backendValue } });
                 if (uiValue && typeof data?.clearValidationError === 'function') {
                   data.clearValidationError(id, 'llmEngine', 'model');
                 }
               }}
-              onMouseDown={e => e.stopPropagation()}
-              onFocus={e => e.stopPropagation()}
-              onClick={e => e.stopPropagation()}
-              aria-invalid={modelErrors.length > 0}
-              aria-describedby={modelErrors.length > 0 ? `${id}-llm-model-error` : undefined}
             >
-              <option value="">Select Model</option>
-              <option value="GPT-4">GPT-4</option>
-              <option value="GPT-4 Turbo">GPT-4 Turbo</option>
-              <option value="GPT-3.5 Turbo">GPT-3.5 Turbo</option>
-              <option value="Gemini Pro">Gemini Pro</option>
-              <option value="Gemini 2.0 Flash">Gemini 2.0 Flash</option>
-              <option value="Claude 3">Claude 3</option>
-            </select>
+              <SelectTrigger
+                className="w-full"
+                aria-invalid={modelErrors.length > 0}
+                aria-describedby={modelErrors.length > 0 ? `${id}-llm-model-error` : undefined}
+              >
+                <SelectValue placeholder="Select Model" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="GPT-4">GPT-4</SelectItem>
+                  <SelectItem value="GPT-4 Turbo">GPT-4 Turbo</SelectItem>
+                  <SelectItem value="GPT-3.5 Turbo">GPT-3.5 Turbo</SelectItem>
+                  <SelectItem value="Gemini Pro">Gemini Pro</SelectItem>
+                  <SelectItem value="Gemini 2.0 Flash">Gemini 2.0 Flash</SelectItem>
+                  <SelectItem value="Claude 3">Claude 3</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
             {modelErrors.length > 0 && (
               <div id={`${id}-llm-model-error`} className="text-xs text-destructive mt-1">
                 {modelErrors.map((err, idx) => (
@@ -122,7 +130,7 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
             )}
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Model API Key</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">API Key</label>
             <div className="relative">
               <input
                 type={showApiKey ? "text" : "password"}
@@ -163,87 +171,28 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Temperature</label>
-            <select
-              className="w-full p-2 text-sm bg-input border border-border rounded focus:ring-2 focus:ring-primary focus:border-transparent nodrag"
-              value={temperature}
-              onChange={(e) => {
-                const newTemp = parseFloat(e.target.value);
-                data?.onUpdate?.(id, { data: { ...data, temperature: newTemp } });
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-              onFocus={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <option value={0.0}>0.0 (Deterministic)</option>
-              <option value={0.1}>0.1 (Very Low)</option>
-              <option value={0.3}>0.3 (Low)</option>
-              <option value={0.7}>0.7 (Medium)</option>
-              <option value={1.0}>1.0 (High)</option>
-            </select>
+            <Select value={temperature.toString()} onValueChange={(value) => {
+              const newTemp = parseFloat(value);
+              data?.onUpdate?.(id, { data: { ...data, temperature: newTemp } });
+            }}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select temperature" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="0.0">0.0 (Deterministic)</SelectItem>
+                  <SelectItem value="0.1">0.1 (Very Low)</SelectItem>
+                  <SelectItem value="0.3">0.3 (Low)</SelectItem>
+                  <SelectItem value="0.7">0.7 (Medium)</SelectItem>
+                  <SelectItem value="1.0">1.0 (High)</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id={`webSearch-${id}`}
-              checked={webSearchEnabled}
-              onChange={(e) => {
-                const enabled = e.target.checked;
-                data?.onUpdate?.(id, { data: { ...data, webSearchEnabled: enabled } });
-              }}
-              className="w-4 h-4 nodrag"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-            />
-            <label htmlFor={`webSearch-${id}`} className="text-xs font-medium text-muted-foreground">
-              Enable Web Search
-            </label>
-          </div>
-          {webSearchEnabled && (
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">SERP API Key</label>
-              <div className="relative">
-                <input
-                  type={showSerpKey ? "text" : "password"}
-                  className={`w-full p-2 pr-8 text-sm bg-input border border-border rounded focus:ring-2 focus:ring-primary focus:border-transparent nodrag ${serpKeyErrors.length > 0 ? "border-destructive ring-1 ring-destructive" : "border-border"}`}
-                  placeholder="Enter SERP API key..."
-                  value={data?.serpApiKey || ''}
-                  onChange={e => {
-                    data?.onUpdate?.(id, { data: { ...data, serpApiKey: e.target.value } });
-                    if (e.target.value && typeof data?.clearValidationError === 'function') {
-                      data.clearValidationError(id, 'llmEngine', 'serpApiKey');
-                    }
-                  }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onFocus={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
-                  aria-invalid={serpKeyErrors.length > 0}
-                  aria-describedby={serpKeyErrors.length > 0 ? `${id}-serp-key-error` : undefined}
-                />
-                <button
-                  type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground nodrag"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowSerpKey(!showSerpKey);
-                  }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  {showSerpKey ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              </div>
-              {serpKeyErrors.length > 0 && (
-                <div id={`${id}-serp-key-error`} className="text-xs text-destructive mt-1">
-                  {serpKeyErrors.map((err, idx) => (
-                    <div key={idx}>{err.error}</div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">System Prompt</label>
             <div className="min-h-[80px] p-2 text-sm bg-input border border-border rounded focus-within:ring-2 focus-within:ring-primary focus-within:border-transparent">
-              <div className="flex flex-wrap gap-1 items-start">
+              <div className="flex flex-col gap-1">
                 {renderTokenizedSystemPrompt().map((token, index) => {
                   if (token.type === "editable") {
                     return (
@@ -262,33 +211,146 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
                         style={{ minHeight: '40px' }}
                       />
                     );
-                  } else {
-                    return (
-                      <span
-                        key={token.key}
-                        className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border ${token.color}`}
-                      >
-                        {token.content}
-                      </span>
-                    );
                   }
+                  // else {
+                  //   return (
+                  //     <span
+                  //       key={token.key}
+                  //       className={`inline-flex items-center px-2 py-1 text-xs font-medium ${token.color}`}
+                  //     >
+                  //       {token.content}
+                  //     </span>
+                  //   );
+                  // }
                 })}
-              </div>
-              {(hasQuery || hasContext) && (
-                <div className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
-                  Connected inputs will be automatically appended to your system prompt
+
+                <div className="relative w-full h-4">
+                  <div className="absolute -left-6">
+                    <CustomHandle
+                      type="target"
+                      position={Position.Left}
+                      id="context"
+                      label={
+                        <div className={`flex items-center gap-2 ${hasContext ? '' : 'opacity-50'}`}>
+                          <span className="text-purple-500">Context: </span>
+                          <span>{`{context}`}</span>
+                        </div>
+                      }
+                      className="!border-green-500 hover:!border-green-400"
+                      labelClassname="gap-5"
+                      style={{ borderColor: '#10b981' }}
+                      tooltipComponents={
+                        [
+                          "knowledgeBase"
+                        ]
+                      }
+                    />
+                  </div>
                 </div>
-              )}
+                <div className="relative w-full h-4">
+                  <div className="absolute -left-6">
+                    <CustomHandle
+                      type="target"
+                      position={Position.Left}
+                      id="query"
+                      label={
+                        <div className={`flex items-center gap-2 ${hasQuery ? '' : 'opacity-50'}`}>
+                          <span className="text-purple-500">Query: </span>
+                          <span>{`{query}`}</span>
+                        </div>
+                      }
+                      className="!border-blue-500 hover:!border-blue-400"
+                      labelClassname="gap-5"
+                      style={{ borderColor: '#3b82f6' }}
+                      tooltipComponents={
+                        [
+                          "userQuery"
+                        ]
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+          <div className="flex flex-col gap-1 w-full mt-8">
+            <div className="flex items-center justify-between gap-4">
+              <label htmlFor={`webSearch-${id}`} className="text-xs font-medium text-muted-foreground">
+                Enable Web Search
+              </label>
+              <Switch
+                id={`webSearch-${id}`}
+                checked={webSearchEnabled}
+                onCheckedChange={(enabled) => {
+                  data?.onUpdate?.(id, { data: { ...data, webSearchEnabled: enabled } });
+                }}
+                className="nodrag"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+            
+            {webSearchEnabled && (
+              <>
+              <Separator />
+              <div className="mt-5">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">SERP API Key</label>
+                <div className="relative">
+                  <input
+                    type={showSerpKey ? "text" : "password"}
+                    className={`w-full p-2 pr-8 text-sm bg-input border border-border rounded focus:ring-2 focus:ring-primary focus:border-transparent nodrag ${serpKeyErrors.length > 0 ? "border-destructive ring-1 ring-destructive" : "border-border"}`}
+                    placeholder="Enter SERP API key..."
+                    value={data?.serpApiKey || ''}
+                    onChange={e => {
+                      data?.onUpdate?.(id, { data: { ...data, serpApiKey: e.target.value } });
+                      if (e.target.value && typeof data?.clearValidationError === 'function') {
+                        data.clearValidationError(id, 'llmEngine', 'serpApiKey');
+                      }
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-invalid={serpKeyErrors.length > 0}
+                    aria-describedby={serpKeyErrors.length > 0 ? `${id}-serp-key-error` : undefined}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground nodrag"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowSerpKey(!showSerpKey);
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    {showSerpKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+                {serpKeyErrors.length > 0 && (
+                  <div id={`${id}-serp-key-error`} className="text-xs text-destructive mt-1">
+                    {serpKeyErrors.map((err, idx) => (
+                      <div key={idx}>{err.error}</div>
+                    ))}
+                  </div>
+                )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-1">
-          {hasQuery && (
-            <div className="text-xs px-2 py-1 bg-blue-500 text-white rounded">Query Input</div>
-          )}
-          {hasContext && (
-            <div className="text-xs px-2 py-1 bg-green-500 text-white rounded">Context Input</div>
-          )}
+        <div className="relative w-full h-4 mt-8">
+          {/* Output handle (right) */}
+          <div className="absolute -right-5">
+            <CustomHandle
+              type="source"
+              position={Position.Right}
+              label="Output"
+              tooltipComponents={
+                [
+                  "output"
+                ]
+              }
+            />
+          </div>
         </div>
       </div>
     </NodeWrapper>

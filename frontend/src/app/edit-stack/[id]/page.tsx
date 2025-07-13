@@ -22,7 +22,8 @@ import ComponentSidebar from '@/components/workflow/sections/ComponentSidebar';
 import WorkflowActionButtons from '@/components/workflow/sections/workflow-canvas/WorkflowActionButtons';
 import CanvasEmptyState from '@/components/workflow/sections/workflow-canvas/CanvasEmptyState';
 import { useNotifications, useWorkflowService, useWorkflowValidation } from '@/hooks';
-import { WorkflowStatus } from '@/types';
+import { DashboardWorkflow, WorkflowStatus } from '@/types';
+import { CreateWorkflowModal } from '@/sections';
 
 const nodeTypes: NodeTypes = {
   userQuery: UserQueryNode,
@@ -77,15 +78,18 @@ export default function EditStackPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
   const [showConfigPanel, setShowConfigPanel] = useState<boolean>(false);
-  const [showValidationErrors, setShowValidationErrors] = useState<boolean>(false); // Start with errors hidden
+  const [showValidationErrors, setShowValidationErrors] = useState<boolean>(false);
 
   const [history, setHistory] = useState<{ nodes: Node[], edges: Edge[] }[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
-  const [isHistoryAction, setIsHistoryAction] = useState<boolean>(false); // Track when we're applying history
+  const [isHistoryAction, setIsHistoryAction] = useState<boolean>(false);
 
   const { isWorkflowValid, validationErrors, validateWorkflow, triggerValidation, clearValidationError, hasValidated } = useWorkflowValidation(nodes, edges);
   const { isBuilding, saveWorkflow, buildWorkflow, executeWorkflow } = useWorkflowService(workflow.id);
   const { hasUnsavedChanges, setLastSaveTime, setHasUnsavedChanges, setNodes: setWorkflowNodes, setEdges: setWorkflowEdges, loadNodes: loadWorkflowNodes, loadEdges: loadWorkflowEdges } = useWorkflowStore();
+
+  const [isEditWorkflow, setIsEditWorkflow] = useState<boolean>(false);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<any | null>(null);
 
   const {
     currentSession,
@@ -114,9 +118,9 @@ export default function EditStackPage() {
     // Don't save history during undo/redo operations
     if (isHistoryAction) return;
 
-    const newEntry = { 
-      nodes: JSON.parse(JSON.stringify(currentNodes)), 
-      edges: JSON.parse(JSON.stringify(currentEdges)) 
+    const newEntry = {
+      nodes: JSON.parse(JSON.stringify(currentNodes)),
+      edges: JSON.parse(JSON.stringify(currentEdges))
     };
 
     setHistory(prevHistory => {
@@ -144,11 +148,11 @@ export default function EditStackPage() {
       setIsHistoryAction(true);
       const prevIndex = historyIndex - 1;
       const prevState = history[prevIndex];
-      
+
       setNodes(prevState.nodes);
       setEdges(prevState.edges);
       setHistoryIndex(prevIndex);
-      
+
       // Reset flag and sync with workflow store after state updates
       setTimeout(() => {
         setIsHistoryAction(false);
@@ -163,12 +167,11 @@ export default function EditStackPage() {
       setIsHistoryAction(true);
       const nextIndex = historyIndex + 1;
       const nextState = history[nextIndex];
-      
+
       setNodes(nextState.nodes);
       setEdges(nextState.edges);
       setHistoryIndex(nextIndex);
-      
-      // Reset flag and sync with workflow store after state updates
+
       setTimeout(() => {
         setIsHistoryAction(false);
         setWorkflowNodes(nextState.nodes);
@@ -184,39 +187,35 @@ export default function EditStackPage() {
     loadWorkflow();
   }, [params?.id]);
 
-  // Initialize history when component mounts or workflow is loaded
   useEffect(() => {
     if (history.length === 0) {
-      const initialState = { 
-        nodes: JSON.parse(JSON.stringify(nodes)), 
-        edges: JSON.parse(JSON.stringify(edges)) 
+      const initialState = {
+        nodes: JSON.parse(JSON.stringify(nodes)),
+        edges: JSON.parse(JSON.stringify(edges))
       };
       setHistory([initialState]);
       setHistoryIndex(0);
     }
   }, [nodes, edges, history.length]);
 
-  // Sync nodes and edges with workflow store for user modifications
-  // This effect runs when nodes/edges change due to user interactions
+ 
   useEffect(() => {
-    // Only sync to workflow store if this is not a history action and not initial load
     if (!isHistoryAction && history.length > 0) {
       setWorkflowNodes(nodes);
       setWorkflowEdges(edges);
     }
   }, [nodes, edges, isHistoryAction, history.length, setWorkflowNodes, setWorkflowEdges]);
 
-  // Auto-save to history with debouncing - only when not applying history actions
   useEffect(() => {
     if (isHistoryAction || history.length === 0) return;
 
     const timer = setTimeout(() => {
       const currentState = { nodes, edges };
       const lastState = history[historyIndex];
-      
+
       // Only compare if we have a valid last state
       if (lastState) {
-        const hasChanges = 
+        const hasChanges =
           JSON.stringify(currentState.nodes) !== JSON.stringify(lastState.nodes) ||
           JSON.stringify(currentState.edges) !== JSON.stringify(lastState.edges);
 
@@ -269,7 +268,7 @@ export default function EditStackPage() {
         setEdges(data.edges);
         loadWorkflowEdges(data.edges); // Load into workflow store without triggering unsaved changes
       }
-      
+
       // Mark as saved since we just loaded from server
       setLastSaveTime(new Date());
       setHasUnsavedChanges(false); // Reset unsaved changes since we just loaded
@@ -391,29 +390,21 @@ export default function EditStackPage() {
   }
 
   const handleBuildStack = async () => {
-    // check if nodes are available or not
     if (nodes.length === 0) {
       showError('No Components', 'Please add at least one component to the workflow before building.');
       return;
     }
-    
-    console.log('Triggering validation...');
-    // First trigger validation to check for UI errors
+
     const validationResult = triggerValidation();
-    console.log('Validation result:', validationResult);
-    console.log('Validation errors after trigger:', validationErrors);
-    console.log('hasValidated after trigger:', hasValidated);
-    
+
     if (!validationResult) {
-      // If validation fails, show errors in both sidebar and nodes
       console.log('Setting showValidationErrors to true');
       setShowValidationErrors(true);
-      setSidebarCollapsed(false); // Ensure sidebar is visible to show errors
+      setSidebarCollapsed(false);
       showError('Validation Errors', 'Please fix all validation errors before building the workflow');
       return;
     }
 
-    // If validation passes, proceed with API calls
     try {
       const mappedNodes = mapNodeModelsForBackend(nodes);
       await buildWorkflow(
@@ -422,7 +413,6 @@ export default function EditStackPage() {
         edges,
         setWorkflow,
         (errors) => {
-          // If there are server-side validation errors, show them
           if (errors && errors.length > 0) {
             setShowValidationErrors(true);
             setSidebarCollapsed(false);
@@ -430,12 +420,11 @@ export default function EditStackPage() {
         },
         setShowValidationErrors
       );
-      
-      // If build succeeds, show success message
+
       if (validationResult) {
         showSuccess('Build Successful', 'Your workflow has been built successfully!');
-        setLastSaveTime(new Date()); // Mark as saved since build saves the workflow
-        setHasUnsavedChanges(false); // Reset unsaved changes
+        setLastSaveTime(new Date()); 
+        setHasUnsavedChanges(false);
       }
     } catch (error) {
       showError('Build Failed', 'Failed to build workflow. Please try again.');
@@ -469,24 +458,19 @@ export default function EditStackPage() {
     }
   }, [isChatOpen, workflow.id, loadSessions, createSessionAsync, setCurrentSession, loadMessages]);
 
-  // Update handleChatMessage to use chat store methods
   const handleChatMessage = async (message: string) => {
     if (!currentSession) return;
-    
+
     setChatLoading(true);
     try {
-      // Send user message using store method
       await sendMessageAsync(currentSession.id, message, 'user');
 
-      // Then trigger workflow execution and get AI response
       try {
         const result = await executeWorkflow(workflow.id, message);
-        
-        // Send AI response using store method
+
         await sendMessageAsync(currentSession.id, result, 'assistant');
-        
+
       } catch (workflowError) {
-        // Send error message as assistant response using store method
         const errorMessage = `Sorry, there was an error processing your request: ${workflowError instanceof Error ? workflowError.message : 'Unknown error'}`;
         await sendMessageAsync(currentSession.id, errorMessage, 'assistant');
       }
@@ -566,30 +550,30 @@ export default function EditStackPage() {
     (changes: any[]) => {
       // Apply the changes to edges first
       onEdgesChange(changes);
-      
+
       // Check for edge removals and update affected nodes
       const removedEdges = changes.filter(change => change.type === 'remove');
-      
+
       if (removedEdges.length > 0) {
         setNodes((nds) => nds.map(node => {
           // Check if this node was affected by edge removal
-          const wasConnected = removedEdges.some(change => 
+          const wasConnected = removedEdges.some(change =>
             edges.find(edge => edge.id === change.id && edge.target === node.id)
           );
-          
+
           if (wasConnected) {
             // Recalculate inputTypes based on remaining edges
-            const remainingIncomingEdges = edges.filter(edge => 
-              edge.target === node.id && 
+            const remainingIncomingEdges = edges.filter(edge =>
+              edge.target === node.id &&
               !removedEdges.some(change => change.id === edge.id)
             );
-            
+
             const inputTypes = remainingIncomingEdges.map(edge =>
               getNodeOutputType(edge.source, nds)
             );
-            
+
             const connectedSources = remainingIncomingEdges.map(edge => edge.source);
-            
+
             return {
               ...node,
               data: {
@@ -600,10 +584,10 @@ export default function EditStackPage() {
               }
             };
           }
-          
+
           return node;
         }));
-        
+
         showInfo('Disconnected', 'Components disconnected successfully');
       }
     },
@@ -676,6 +660,9 @@ export default function EditStackPage() {
               showValidationErrors={showValidationErrors}
               onToggleCollapse={() => setSidebarCollapsed(true)}
               onDragStart={onDragStart}
+              workflow={workflow}
+              setSelectedWorkflow={setSelectedWorkflow}
+              setIsEditWorkflow={setIsEditWorkflow}
             />
           </AnimatePresence>
 
@@ -722,15 +709,13 @@ export default function EditStackPage() {
       </ReactFlowProvider>
 
       <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
-        <DialogContent className="max-w-7xl h-[80vh] p-0 overflow-hidden">
-          <div className="h-full pb-6 px-6">
+        <DialogContent className="max-w-4xl h-[80vh] p-0 gap-0 flex flex-col">
             <ChatInterface
               messages={storeMessages}
               onSendMessage={handleChatMessage}
               isLoading={chatStoreLoading || isTyping}
               chatLoading={chatLoading}
             />
-          </div>
         </DialogContent>
       </Dialog>
 
@@ -749,6 +734,8 @@ export default function EditStackPage() {
           }}
         />
       )}
+
+      <CreateWorkflowModal mode='edit' isModalOpen={isEditWorkflow} setIsModalOpen={setIsEditWorkflow} selectedWorkflow={selectedWorkflow} />
     </div>
   );
 }

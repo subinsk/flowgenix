@@ -3,24 +3,34 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '../../../shared/components';
-import { ChevronLeft, AlertCircle } from 'lucide-react';
+import { ChevronLeft, AlertCircle, Menu, FolderPen } from 'lucide-react';
 import { NODE_TYPE_MAP } from '@/constants';
 import { NodeFieldError } from '../../../hooks/useWorkflowValidation';
 
 interface ComponentSidebarProps {
+  workflow: {
+    name: string;
+    description: string;
+    status?: string; // Add status to workflow interface
+  };
   collapsed: boolean;
   validationErrors: NodeFieldError[];
   showValidationErrors: boolean;
   onToggleCollapse: () => void;
   onDragStart: (event: React.DragEvent, nodeType: string) => void;
+  setSelectedWorkflow: (workflow: any) => void;
+  setIsEditWorkflow: (isEdit: boolean) => void;
 }
 
 export default function ComponentSidebar({
+  workflow,
   collapsed,
   validationErrors,
   showValidationErrors,
   onToggleCollapse,
-  onDragStart
+  onDragStart,
+  setSelectedWorkflow,
+  setIsEditWorkflow,
 }: ComponentSidebarProps) {
   if (collapsed) return null;
 
@@ -32,6 +42,17 @@ export default function ComponentSidebar({
       transition={{ duration: 0.2 }}
       className="bg-card border-r border-border flex flex-col overflow-hidden"
     >
+      <div className="flex items-center justify-between px-3 py-1 border rounded-xl border-border m-4 bg-muted/80">
+        <span className=' font-semibold'>
+          {workflow.name}
+        </span>
+        <Button variant="ghost" size='sm' className='hover:bg-muted-foreground/10' onClick={() => {
+          setSelectedWorkflow(workflow);
+          setIsEditWorkflow(true);
+        }}>
+          <FolderPen />
+        </Button>
+      </div>
       {/* Component Library */}
       <div className="flex-1 p-4 overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
@@ -45,7 +66,7 @@ export default function ComponentSidebar({
             <ChevronLeft className="w-4 h-4" />
           </Button>
         </div>
-        
+
         <div className="space-y-2">
           {Object.values(NODE_TYPE_MAP).map((component) => {
             const Icon = component.icon;
@@ -54,19 +75,22 @@ export default function ComponentSidebar({
                 key={component.id}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="p-2 bg-background border border-border rounded-lg cursor-grab hover:border-primary transition-colors flex items-center gap-2"
+                className="px-2 py-1 bg-background border border-border rounded-lg cursor-grab hover:border-primary transition-colors flex items-center justify-between text-[#444444]"
                 draggable
                 onDragStart={(event) => onDragStart(event as any, component.id)}
               >
-                <div className="w-8 h-8 bg-muted rounded-md flex items-center justify-center text-sm">
-                  <Icon className="w-5 h-5" />
+                <div className='flex items-center gap-2'>
+                  <div className="w-8 h-8 rounded-md flex items-center justify-center text-sm">
+                    <Icon className={`w-5 h-5 text-[#444444]/80 ${component.label === "Output" ? "scale-x-[-1]" : ""}`} />
+                  </div>
+                  <span className="font-medium text-sm">{component.label}</span>
                 </div>
-                <span className="font-medium text-foreground text-sm">{component.label}</span>
+                <Menu />
               </motion.div>
             );
           })}
         </div>
-        
+
         {showValidationErrors && validationErrors.length > 0 && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
             <h4 className="text-sm font-medium text-red-800 mb-2 flex items-center">

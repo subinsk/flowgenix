@@ -120,6 +120,8 @@ export default function WorkflowCanvas({
           showZoom
           showFitView
           showInteractive
+          position='bottom-center'
+          orientation='horizontal'
         />
         {/*<MiniMap 
           className="bg-card border border-border"
@@ -132,7 +134,8 @@ export default function WorkflowCanvas({
           variant={backgroundVariant}
           gap={16}
           size={3}
-          color="#e2e8f0"
+          color="#d4d4d4"
+          bgColor='#f5f5f5'
         />
       </ReactFlow>
     </div>

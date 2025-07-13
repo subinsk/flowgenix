@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui';
 import { Play, MessageCircle } from 'lucide-react';
+import {Icon as Iconify} from '@iconify/react'
 
 interface WorkflowActionButtonsProps {
   isBuilding: boolean;
@@ -19,37 +20,35 @@ export default function WorkflowActionButtons({
   onChat
 }: WorkflowActionButtonsProps) {
   return (
-    <div className="absolute bottom-6 right-6 flex gap-2 z-20">
+    <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-20">
       <Button
         size="sm"
-        variant="outline"
+        variant="default"
         onClick={onBuild}
         disabled={isBuilding}
-        className={`p-2 w-auto px-3 relative ${hasUnsavedChanges ? 'border-orange-500 bg-orange-50 hover:bg-orange-100' : ''}`}
+        className={`w-14 h-14 p-1 rounded-full bg-primary relative ${hasUnsavedChanges ? '' : ''}`}
       >
         {isBuilding ? (
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            className="w-4 h-4 border-2 border-current border-t-transparent rounded-full"
+            className=""
           />
         ) : (
-          <Play className="w-4 h-4" />
+        <Iconify icon="ph:play-fill" style={{width: '32px', height: '32px'}} />
         )}
-        <span className="ml-1">Build</span>
         {hasUnsavedChanges && !isBuilding && (
-          <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+          <span className="absolute top-0 left-0 w-4 h-4 bg-orange-500 rounded-full animate-pulse"></span>
         )}
       </Button>
       <Button
         size="sm"
-        variant="outline"
+        variant="default"
         onClick={onChat}
-        disabled={false} // Always enabled
-        className="p-2 w-auto px-3"
+        disabled={false} 
+        className="w-14 h-14 rounded-full relative bg-[#2563EB] hover:bg-[#2563EB]/80"
       >
-        <MessageCircle className="w-4 h-4" />
-        <span className="ml-1">Chat</span>
+        <Iconify icon="heroicons-solid:chat" style={{width: '32px', height: '32px'}} />
       </Button>
     </div>
   );

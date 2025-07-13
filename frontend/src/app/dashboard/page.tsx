@@ -3,13 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui';
+import { Button, Separator } from '@/components/ui';
 import { workflowService } from '@/services';
 import { FilePlus } from 'lucide-react';
 import { useNotifications } from '@/hooks';
 import { STATUS_MAP } from '@/constants';
 import { CreateWorkflowModal, DashboardHeader } from '@/sections';
 import { DashboardWorkflow, WorkflowStatus } from '@/types';
+import { PlusIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 
 
 export default function DashboardPage() {
@@ -70,19 +71,16 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-background">
       <DashboardHeader />
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+      <main className="max-w-7xl mx-auto px-[51px] py-8 bg-muted min-h-screen">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
           <div className="mb-4 md:mb-0">
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="text-2xl font-bold text-foreground mb-2"
             >
-              Your Workflows
+              My Stacks
             </motion.h2>
-            <p className="text-muted-foreground">
-              Create and manage your AI-powered workflows
-            </p>
           </div>
 
           <motion.div
@@ -94,16 +92,17 @@ export default function DashboardPage() {
               onClick={() => setIsCreateModalOpen(true)}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              + Create Workflow
+              <PlusIcon className="w-6 h-6" />
+              New Stack
             </Button>
           </motion.div>
         </div>
-
-        <motion.div
+        <Separator />
+        {/* <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mb-6"
+          className="my-6"
         >
           <input
             type="text"
@@ -112,38 +111,34 @@ export default function DashboardPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full max-w-md px-4 py-2 bg-input border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:border-transparent"
           />
-        </motion.div>
-
+        </motion.div> */}
         {filteredWorkflows.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="text-center py-12"
+            className="flex flex-col max-w-md mx-auto mt-32 bg-white rounded-2xl px-10 py-8 border"
           >
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <FilePlus className="w-8 h-8 text-primary" />
-            </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              {searchQuery ? 'No workflows found' : 'No workflows yet'}
+            <h3 className="text-lg font-semibold text-foreground mb-3">
+              {searchQuery ? 'No stacks found' : 'Create New Stack'}
             </h3>
             <p className="text-muted-foreground mb-6">
               {searchQuery
                 ? 'Try adjusting your search terms'
-                : 'Create your first workflow to get started'
+                : 'Start building your generative AI apps with our essential tools and frameworks'
               }
             </p>
             {!searchQuery && (
               <Button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 max-w-[124px]"
               >
-                Create Your First Workflow
+                <PlusIcon /> New Stack
               </Button>
             )}
           </motion.div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-9">
             {filteredWorkflows.map((workflow, index) => (
               <motion.div
                 key={workflow.id}
@@ -151,36 +146,30 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 + index * 0.1 }}
                 whileHover={{ y: -2 }}
-                className="bg-card border border-border rounded-lg p-6 cursor-pointer hover:shadow-lg transition-all duration-200 group"
-                onClick={() => router.push(`/edit-stack/${workflow.id}`)}
+                className="bg-card border border-border rounded-2xl px-7 py-8 transition-all duration-200 group"
               >
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex flex-col space-y-10">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-foreground mb-1">
+                    <h3 className="font-semibold text-foreground mb-2">
                       {workflow.name}
                     </h3>
                     <p className="text-sm text-muted-foreground line-clamp-2">
                       {workflow.description}
                     </p>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium border ${STATUS_MAP[workflow.status]?.color ?? 'bg-gray-100 text-gray-700 border-gray-200'}`}>
-                        {STATUS_MAP[workflow.status]?.label ?? workflow.status}
-                    </div>
-                    <motion.div
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      whileHover={{ y: -2 }}
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      className="text-black hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/edit-stack/${workflow.id}`);
+                      }}
                     >
-                      <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </motion.div>
+                      Edit Stack
+                      <ArrowTopRightOnSquareIcon className="w-5 h-5" />
+                    </Button>
                   </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Created {workflow.createdAt}</span>
-                  <span>Modified {workflow.updatedAt}</span>
                 </div>
               </motion.div>
             ))}
@@ -188,7 +177,7 @@ export default function DashboardPage() {
         )}
       </main>
 
-      <CreateWorkflowModal isCreateModalOpen={isCreateModalOpen} setIsCreateModalOpen={setIsCreateModalOpen} setWorkflows={setWorkflows} />
+      <CreateWorkflowModal isModalOpen={isCreateModalOpen} setIsModalOpen={setIsCreateModalOpen} setWorkflows={setWorkflows} />
     </div>
   );
 }

@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from app.services.ai_service import AIService
 from app.services.vector_service import get_gemini_embedding
+from app.utils.dependencies import get_current_user
+from app.models.user import User
 import os
 
 router = APIRouter()
@@ -42,8 +44,8 @@ async def test_brave(req: LLMRequest):
     return {"message": "Brave API not implemented in this stub."}
 
 @router.post("/llm/embedding/gemini")
-async def test_gemini_embedding(req: EmbeddingRequest):
-    embedding = await get_gemini_embedding(req.text)
+async def test_gemini_embedding(req: EmbeddingRequest, current_user: User = Depends(get_current_user)):
+    embedding = await get_gemini_embedding(req.text, current_user.id)
     return {"embedding": embedding}
 
 # You can add more embedding endpoints for OpenAI, etc.

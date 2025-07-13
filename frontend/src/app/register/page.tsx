@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { authService } from '@/services';
 import { Button } from '@/components/ui';
+import { Logo } from '@/components/common/logo';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -49,16 +50,16 @@ export default function RegisterPage() {
         className="relative max-w-md w-full bg-card border border-border rounded-xl shadow-lg p-8"
       >
         {/* Logo and Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 flex flex-col items-center">
           <motion.div 
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="w-12 h-12 bg-primary text-primary-foreground rounded-xl flex items-center justify-center mx-auto mb-4 font-bold text-xl"
+            className='mb-6'
           >
-            F
+            <Logo type='dark'/>
           </motion.div>
-          <h1 className="text-2xl font-bold text-card-foreground mb-2">Join Flowgenix</h1>
+          <h1 className="text-2xl font-bold text-card-foreground mb-2">Join AI Planet</h1>
           <p className="text-muted-foreground">Create your account to get started</p>
         </div>
 

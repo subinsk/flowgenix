@@ -70,6 +70,28 @@ export function useWorkflowValidation(nodes: Node[], edges: Edge[]) {
       errors.push({ nodeId: 'workflow', nodeType: 'workflow', field: 'output', error: 'Workflow must contain an Output component.' });
     }
 
+    // Check connection from UserQuery to LLM Engine
+    const userQueryNode = nodes.find(n => n.type === 'userQuery');
+    const llmEngineNode = nodes.find(n => n.type === 'llmEngine');
+    
+    if (userQueryNode && llmEngineNode) {
+      // Check if there's a connection from UserQuery to LLM Engine
+      const hasConnection = edges.some(edge => 
+        edge.source === userQueryNode.id && 
+        edge.target === llmEngineNode.id &&
+        edge.targetHandle === 'query'
+      );
+      
+      if (!hasConnection) {
+        errors.push({ 
+          nodeId: 'workflow', 
+          nodeType: 'workflow', 
+          field: 'connection', 
+          error: 'User Query must be connected to LLM Engine query input.' 
+        });
+      }
+    }
+
     console.log('validateWorkflow errors found:', errors);
     const isValid = errors.length === 0 && nodes.length >= 3;
     console.log('validateWorkflow isValid:', isValid);

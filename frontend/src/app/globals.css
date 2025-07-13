@@ -27,6 +27,7 @@
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
+  --color-accent-background: var(--accent-background);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -58,6 +59,8 @@
   --gray-800: #262626;
   --gray-900: #171717;
   --gray-950: #0a0a0a;
+  --prussian-blue: #013145; 
+  --may-green: #44924C;
   
   --radius: 0.5rem;
   --background: var(--pure-white);
@@ -66,7 +69,7 @@
   --card-foreground: var(--pure-black);
   --popover: var(--pure-white);
   --popover-foreground: var(--pure-black);
-  --primary: var(--pure-black);
+  --primary: var(--may-green);
   --primary-foreground: var(--pure-white);
   --secondary: var(--gray-100);
   --secondary-foreground: var(--gray-900);
@@ -74,6 +77,7 @@
   --muted-foreground: var(--gray-500);
   --accent: var(--gray-100);
   --accent-foreground: var(--gray-900);
+  --accent-background: var(--prussian-blue);
   --destructive: #ef4444;
   --border: var(--gray-200);
   --input: var(--pure-white);
@@ -175,4 +179,40 @@
 
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+/* React Flow custom node styles to remove double backgrounds */
+.react-flow__node {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__node-output {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__node-userQuery {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__node-knowledgeBase {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__node-llmEngine {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Custom node wrapper should handle all background styling */
+.react-flow__node [data-nodetype] {
+  background: var(--card) !important;
 }

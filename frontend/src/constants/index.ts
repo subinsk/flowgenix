@@ -12,12 +12,12 @@ export const ANIMATIONS = {
   FAST: 0.2,
   NORMAL: 0.3,
   SLOW: 0.5,
-  
+
   // Easing
   EASE_IN_OUT: [0.4, 0, 0.2, 1],
   EASE_OUT: [0, 0, 0.2, 1],
   EASE_IN: [0.4, 0, 1, 1],
-  
+
   // Spring configs
   SPRING_SMOOTH: { type: 'spring', stiffness: 300, damping: 30 },
   SPRING_BOUNCY: { type: 'spring', stiffness: 400, damping: 10 },
@@ -220,27 +220,65 @@ export const STATUS_MAP: Record<string, { label: string; color: string }> = {
   },
 };
 
-import { User, BookOpen, Brain, Monitor } from 'lucide-react';
+import { FileInput, BookOpen, Brain, Sparkles } from 'lucide-react';
 
-export const NODE_TYPE_MAP = {
+export const NODE_TYPE_MAP: Record<string, { id: string; label: string; icon: React.ComponentType<any>; inputs: Array<any>; outputs: Array<any> }> = {
   userQuery: {
     id: 'userQuery',
     label: 'User Query',
-    icon: User,
+    icon: FileInput,
+    inputs: [],
+    outputs: [
+      {
+        id: 'knowledgeBase',
+      },
+      {
+        id: 'llmEngine',
+      }
+    ]
+  },
+  llmEngine: {
+    id: 'llmEngine',
+    label: 'LLM Engine',
+    icon: Sparkles,
+    inputs: [
+      {
+        id: 'userQuery',
+      },
+      {
+        id: 'knowledgeBase',
+      },
+    ],
+    outputs: [
+      {
+        id: 'output',
+      },
+    ],
   },
   knowledgeBase: {
     id: 'knowledgeBase',
     label: 'Knowledge Base',
     icon: BookOpen,
-  },
-  llmEngine: {
-    id: 'llmEngine',
-    label: 'LLM Engine',
-    icon: Brain,
+    inputs: [
+      {
+        id: 'userQuery',
+      },
+    ],
+    outputs: [
+      {
+        id: 'llmEngine',
+      },
+    ],
   },
   output: {
     id: 'output',
     label: 'Output',
-    icon: Monitor,
+    icon: FileInput,
+    inputs: [
+      {
+        id: 'llmEngine',
+      },
+    ],
+    outputs: [],
   },
 };

@@ -31,7 +31,7 @@ const ModernHeader: React.FC = () => {
               <span className="text-white font-bold text-sm">F</span>
             </div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              Flowgenix
+              AI Planet
             </h1>
           </motion.div>
           

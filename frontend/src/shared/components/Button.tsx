@@ -30,7 +30,7 @@ const Button: React.FC<ButtonProps> = ({
   const getVariantClasses = (variant: string) => {
     switch (variant) {
       case 'primary':
-        return 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm';
+        return 'bg-primary hover:bg-primary/80 text-white shadow-sm';
       case 'secondary':
         return 'bg-gray-600 hover:bg-gray-700 text-white shadow-sm';
       case 'outline':
@@ -40,7 +40,7 @@ const Button: React.FC<ButtonProps> = ({
       case 'danger':
         return 'bg-red-600 hover:bg-red-700 text-white shadow-sm';
       default:
-        return 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm';
+        return 'bg-primary hover:bg-primary/80 text-white shadow-sm';
     }
   };
 
@@ -66,7 +66,7 @@ const Button: React.FC<ButtonProps> = ({
       transition={ANIMATIONS.SPRING_SMOOTH}
       className={`
         inline-flex items-center justify-center gap-2 rounded-md font-medium
-        transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+        transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
         disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer
         ${getVariantClasses(variant)}
         ${getSizeClasses(size)}

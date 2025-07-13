@@ -16,6 +16,7 @@ from app.schemas.workflow import (
 )
 from app.services.workflow_service import WorkflowService
 from app.services.document_service import DocumentService
+from app.services.api_key_service import ApiKeyService
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
@@ -317,8 +318,10 @@ async def upload_documents(
         api_key_service.create_api_key(str(current_user.id), api_key_data)
 
     # Get stored API keys as fallback
+    # Only get API key from database if not provided in request
     stored_api_key = None
     if not api_key:
+        api_key_service = ApiKeyService(db)
         # Determine which API key to use based on embedding model
         if embedding_model == "all-MiniLM-L6-v2":
             stored_api_key = api_key_service.get_decrypted_api_key(str(current_user.id), "huggingface")

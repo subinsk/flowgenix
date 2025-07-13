@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Settings, Trash2, Upload, Download, HelpCircle, Eye, EyeOff, Key } from 'lucide-react';
-import { Button } from '@/components/ui';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui';
 import ApiKeyManager from './ApiKeyManager';
 import { apiKeyService } from '@/services/apiKeyService';
+import { NODE_TYPE_MAP } from '@/constants';
 
 interface NodeConfigurationPanelProps {
   selectedNode: any;
@@ -38,11 +39,11 @@ const predefinedConfigs = {
   ]
 };
 
-export default function NodeConfigurationPanel({ 
-  selectedNode, 
-  onClose, 
-  onUpdateNode, 
-  onDeleteNode 
+export default function NodeConfigurationPanel({
+  selectedNode,
+  onClose,
+  onUpdateNode,
+  onDeleteNode
 }: NodeConfigurationPanelProps) {
   const [config, setConfig] = useState(selectedNode?.data || {});
   const [showApiKey, setShowApiKey] = useState(false);
@@ -59,7 +60,7 @@ export default function NodeConfigurationPanel({
         apiKeyService.hasApiKey('brave'),
         apiKeyService.hasApiKey('huggingface')
       ]);
-      
+
       setHasStoredKeys({
         openai: keyChecks[0],
         serpapi: keyChecks[1],
@@ -117,15 +118,19 @@ export default function NodeConfigurationPanel({
   const renderUserQueryConfig = () => (
     <div className="space-y-4">
       <div>
+        <div className="flex items-center gap-2">
         <label className="block text-sm font-medium text-foreground mb-2">
-          Query Input
-          <button 
-            className="ml-2 text-muted-foreground hover:text-foreground"
-            title="Enter the query that will be processed by the workflow"
-          >
-            <HelpCircle size={16} />
-          </button>
+          User Query
         </label>
+         <Tooltip>
+            <TooltipTrigger className="p-0" asChild>
+              <HelpCircle size={14} />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Enter the query that will be processed by the workflow</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
         <textarea
           className="w-full p-3 text-sm bg-input border border-border rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-transparent"
           placeholder="Write your query here..."
@@ -139,7 +144,7 @@ export default function NodeConfigurationPanel({
         <label className="block text-sm font-medium text-foreground mb-2">
           Query Type
         </label>
-        <select 
+        <select
           className="w-full p-3 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           value={config.queryType || 'general'}
           onChange={(e) => handleConfigChange('queryType', e.target.value)}
@@ -158,14 +163,14 @@ export default function NodeConfigurationPanel({
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
           Embedding Model
-          <button 
+          <button
             className="ml-2 text-muted-foreground hover:text-foreground"
             title="Choose the embedding model for text processing"
           >
             <HelpCircle size={16} />
           </button>
         </label>
-        <select 
+        <select
           className="w-full p-3 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           value={config.embeddingModel || 'text-embedding-ada-002'}
           onChange={(e) => handleConfigChange('embeddingModel', e.target.value)}
@@ -244,7 +249,7 @@ export default function NodeConfigurationPanel({
         <label className="block text-sm font-medium text-foreground mb-2">
           Model
         </label>
-        <select 
+        <select
           className="w-full p-3 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           value={config.model || 'GPT-4'}
           onChange={(e) => handleConfigChange('model', e.target.value)}
@@ -260,7 +265,7 @@ export default function NodeConfigurationPanel({
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
           Temperature: {config.temperature || 0.7}
-          <button 
+          <button
             className="ml-2 text-muted-foreground hover:text-foreground"
             title="Controls randomness: 0 = focused, 1 = creative"
           >
@@ -404,7 +409,7 @@ export default function NodeConfigurationPanel({
         <label className="block text-sm font-medium text-foreground mb-2">
           Output Format
         </label>
-        <select 
+        <select
           className="w-full p-3 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           value={config.format || 'markdown'}
           onChange={(e) => handleConfigChange('format', e.target.value)}
@@ -460,13 +465,10 @@ export default function NodeConfigurationPanel({
   };
 
   const getNodeIcon = () => {
-    switch (selectedNode.type) {
-      case 'userQuery': return '💬';
-      case 'knowledgeBase': return '📚';
-      case 'llmEngine': return '🧠';
-      case 'output': return '📤';
-      default: return '⚙️';
-    }
+    const { icon } = NODE_TYPE_MAP[selectedNode.type]
+    const Icon = icon;
+    return <Icon className="w-10 h-10 text-[#444444]" />
+
   };
 
   const getNodeName = () => {
@@ -501,7 +503,7 @@ export default function NodeConfigurationPanel({
           <div className="p-6 border-b border-border">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{getNodeIcon()}</span>
+                {getNodeIcon()}
                 <div>
                   <h3 className="text-lg font-semibold text-foreground">{getNodeName()} Configuration</h3>
                   <p className="text-sm text-muted-foreground">ID: {selectedNode.id}</p>
@@ -524,18 +526,19 @@ export default function NodeConfigurationPanel({
                 <h4 className="text-sm font-medium text-foreground mb-3">Quick Setup</h4>
                 <div className="grid grid-cols-1 gap-2">
                   {preconfigs.map((preconfig, index) => (
-                    <button
+                    <Button
+                      variant="outline"
                       key={index}
                       onClick={() => applyPredefinedConfig(preconfig)}
-                      className="p-3 text-left bg-muted hover:bg-muted/80 rounded-lg transition-colors"
+                      className="p-3 text-left items-start flex flex-col h-16"
                     >
                       <div className="font-medium text-foreground">{preconfig.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {Object.entries(preconfig).slice(1, 3).map(([key, value]) => 
-                          `${key}: ${value}`
+                        {Object.entries(preconfig).slice(1, 3).map(([key, value]) =>
+                          `${key.charAt(0).toUpperCase() + key.slice(1)}: ${value}`
                         ).join(', ')}
                       </div>
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -598,9 +601,9 @@ export default function NodeConfigurationPanel({
       </motion.div>
 
       {/* API Key Manager Modal */}
-      <ApiKeyManager 
-        isOpen={showApiKeyManager} 
-        onClose={() => setShowApiKeyManager(false)} 
+      <ApiKeyManager
+        isOpen={showApiKeyManager}
+        onClose={() => setShowApiKeyManager(false)}
       />
     </AnimatePresence>
   );
