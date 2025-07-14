@@ -1,12 +1,12 @@
 {
   "framework": "nextjs",
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://your-backend-app.onrender.com"
+    "NEXT_PUBLIC_API_URL": "https://flowgenix-backend.onrender.com"
   },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://your-backend-app.onrender.com/api/$1"
+      "destination": "https://flowgenix-backend.onrender.com/api/$1"
     }
   ]
 }

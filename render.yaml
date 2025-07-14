@@ -14,21 +14,22 @@ services:
       - key: API_KEY_ENCRYPTION_KEY
         generateValue: true
       - key: ALLOWED_ORIGINS
-        value: "https://your-frontend-app.vercel.app"
+        value: "https://flowgenix-frontend.vercel.app,https://*.vercel.app"
       - key: CHROMA_PERSIST_DIRECTORY
-        value: "/opt/render/project/src/chroma_db"
+        value: "/opt/render/project/chroma_db"
       - key: UPLOAD_DIR
-        value: "/opt/render/project/src/uploaded_docs"
+        value: "/opt/render/project/uploaded_docs"
+      - key: APP_NAME
+        value: "Flowgenix"
+      - key: APP_VERSION
+        value: "1.0.0"
+      - key: DEBUG
+        value: "False"
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
     autoDeploy: true
     buildFilter:
       paths:
         - backend/**
         - render.yaml
     healthCheckPath: /health
-    
-databases:
-  - name: flowgenix-db
-    databaseName: flowgenix
-    user: flowgenix
-    plan: free
-    region: oregon

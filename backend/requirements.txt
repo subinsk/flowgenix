@@ -14,8 +14,9 @@ python-dotenv==1.0.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
 
-# Vector database
-chromadb==0.4.18
+# Vector database - Updated to latest working version
+chromadb==1.0.13
+numpy==2.0.2
 
 # HTTP client
 httpx==0.25.2
