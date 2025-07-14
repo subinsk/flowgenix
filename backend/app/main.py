@@ -28,6 +28,10 @@ async def lifespan(app: FastAPI):
     os.makedirs(settings.upload_dir, exist_ok=True)
     logger.info(f"Upload directory ensured: {settings.upload_dir}")
     
+    # Ensure ChromaDB persist directory exists
+    os.makedirs(settings.chroma_persist_directory, exist_ok=True)
+    logger.info(f"ChromaDB persist directory ensured: {settings.chroma_persist_directory}")
+    
     yield
     
     # Shutdown

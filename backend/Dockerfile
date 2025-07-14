@@ -18,8 +18,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create uploads directory
-RUN mkdir -p uploads
+# Create uploads and chroma_db directories
+RUN mkdir -p uploads chroma_db
 
 # Expose port
 EXPOSE 8000

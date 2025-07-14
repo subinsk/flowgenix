@@ -18,15 +18,21 @@ class DocumentService:
     def __init__(self, db: Session = None):
         self.db = db
         self.upload_dir = settings.upload_dir
-        self.chroma_client = chromadb.HttpClient(
-            host=settings.chroma_host, 
-            port=settings.chroma_port
-        )
+        
+        # Initialize ChromaDB in embedded mode
+        self.chroma_client = chromadb.Client(chromadb.config.Settings(
+            persist_directory=settings.chroma_persist_directory,
+            anonymized_telemetry=False
+        ))
+        
         self.collection_name = "documents"
         self.api_key_service = ApiKeyService(db) if db else None
         
         # Ensure upload directory exists
         os.makedirs(self.upload_dir, exist_ok=True)
+        
+        # Ensure ChromaDB persist directory exists
+        os.makedirs(settings.chroma_persist_directory, exist_ok=True)
 
     async def upload_document(self, file: UploadFile, user_id: str, embedding_model: str = "text-embedding-ada-002", api_key: str = None) -> Document:
         """Upload and process document"""

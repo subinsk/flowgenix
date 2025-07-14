@@ -2,11 +2,24 @@ from typing import List, Dict, Any, Optional
 import chromadb
 from chromadb.config import Settings
 import httpx
+import os
 from app.services.api_key_service import ApiKeyService
+from app.core.config import settings
 
-# Initialize ChromaDB client (in-memory for now)
-chroma_client = chromadb.Client(Settings())
-collection = chroma_client.create_collection("documents")
+# Initialize ChromaDB client in embedded mode with persistence
+chroma_client = chromadb.Client(Settings(
+    persist_directory=settings.chroma_persist_directory,
+    anonymized_telemetry=False
+))
+
+# Ensure persist directory exists
+os.makedirs(settings.chroma_persist_directory, exist_ok=True)
+
+# Get or create collection
+try:
+    collection = chroma_client.get_collection("documents")
+except:
+    collection = chroma_client.create_collection("documents")
 
 async def get_gemini_embedding(text: str, user_id: int) -> list:
     api_key_service = ApiKeyService()
