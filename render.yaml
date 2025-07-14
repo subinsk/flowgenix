@@ -18,7 +18,7 @@ services:
       - key: CHROMA_PERSIST_DIRECTORY
         value: "/opt/render/project/chroma_db"
       - key: UPLOAD_DIR
-        value: "/opt/render/project/uploaded_docs"
+        value: "/opt/render/project/uploads"
       - key: APP_NAME
         value: "Flowgenix"
       - key: APP_VERSION

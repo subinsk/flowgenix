@@ -33,7 +33,7 @@ services:
       - chromadb
     volumes:
       - ./backend:/app
-      - backend_uploads:/app/uploaded_docs
+      - backend_uploads:/app/uploads
 
   postgres:
     image: postgres:15
