@@ -371,11 +371,34 @@ class DocumentService:
                 self.db.commit()
                 self.db.refresh(db_document)
             
-            # Generate embeddings
+            # Generate embeddings with user's API keys
             print(f"DEBUG: Generating embeddings for document: {file.filename}")
             print(f"DEBUG: Text content length: {len(text_content)}")
             ai_service = AIService()
-            embeddings = await ai_service.generate_embeddings(text_content)
+            
+            # Try to get user's API keys for embeddings
+            embeddings = None
+            api_key = None
+            embedding_model = "all-MiniLM-L6-v2"  # Default to HuggingFace free model
+            
+            if self.api_key_service and user_id:
+                # Try HuggingFace first (free tier)
+                api_key = self.api_key_service.get_decrypted_api_key(str(user_id), "huggingface")
+                if api_key:
+                    print(f"DEBUG: Using HuggingFace API key for embeddings")
+                    embeddings = await ai_service.generate_embeddings(text_content, model=embedding_model, api_key=api_key)
+                else:
+                    # Try OpenAI as fallback
+                    api_key = self.api_key_service.get_decrypted_api_key(str(user_id), "openai")
+                    if api_key:
+                        print(f"DEBUG: Using OpenAI API key for embeddings")
+                        embedding_model = "text-embedding-ada-002"
+                        embeddings = await ai_service.generate_embeddings(text_content, model=embedding_model, api_key=api_key)
+                    else:
+                        print("DEBUG: No API keys found for user - embeddings will not be generated")
+            else:
+                print("DEBUG: API key service not available - embeddings will not be generated")
+            
             print(f"DEBUG: Embeddings generated: {bool(embeddings)}")
             if embeddings:
                 print(f"DEBUG: Embedding dimensions: {len(embeddings)}")
