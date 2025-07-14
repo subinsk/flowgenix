@@ -1,46 +1,46 @@
 # FastAPI and web server
-fastapi==0.115.13
-uvicorn[standard]==0.34.3
-websockets==12.0
-python-multipart==0.0.6
+fastapi
+uvicorn[standard]
+websockets
+python-multipart
 
 # Database
-psycopg2-binary==2.9.9
-sqlalchemy==2.0.23
-alembic==1.16.2
+psycopg2-binary
+sqlalchemy
+alembic
 
 # Environment and configuration
-python-dotenv==1.0.0
-pydantic==2.11.7
-pydantic-settings==2.10.1
+python-dotenv
+pydantic
+pydantic-settings
 
-# Vector database - Updated to latest working version
-chromadb==1.0.13
-numpy==2.0.2
+# Vector database
+chromadb
+numpy
 
 # HTTP client
-httpx==0.28.1
-aiofiles==23.2.1
+httpx
+aiofiles
 
 # Document processing
-PyMuPDF==1.23.8
-python-docx==1.1.0
+PyMuPDF
+python-docx
 
 # Authentication
-PyJWT==2.8.0
-bcrypt==4.0.1
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+PyJWT
+bcrypt
+python-jose[cryptography]
+passlib[bcrypt]
 
 # Email validation
-email-validator==2.1.0
+email-validator
 
 # Monitoring and logging
-prometheus-client==0.19.0
-prometheus-fastapi-instrumentator==6.1.0
-python-json-logger==2.0.7
-structlog==23.2.0
+prometheus-client
+prometheus-fastapi-instrumentator
+python-json-logger
+structlog
 
-# AI services (optional - add API keys to .env)
-openai==1.3.7
-google-generativeai==0.3.1
+# AI services
+openai
+google-generativeai
