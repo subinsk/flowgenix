@@ -1,44 +1,57 @@
 from pydantic_settings import BaseSettings
-from typing import Optional, List
+from pydantic import field_validator
+from typing import Optional, List, Union
 from pathlib import Path
 from dotenv import load_dotenv
 import os
 
-# Load .env from project root
-ROOT_DIR = Path(__file__).resolve().parents[2]
-load_dotenv(dotenv_path=ROOT_DIR / '.env')
+# Load .env from backend directory (where the Docker context runs)
+load_dotenv()
 
 class Settings(BaseSettings):
     # Application
-    app_name: str = os.getenv("APP_NAME", "Flowgenix")
-    app_version: str = os.getenv("APP_VERSION", "1.0.0")
-    debug: bool = os.getenv("DEBUG", "False").lower() == "true"
+    app_name: str = "Flowgenix"
+    app_version: str = "1.0.0"
+    debug: bool = False
     
     # Database
-    database_url: str = os.getenv("DATABASE_URL", "postgresql://flowgenix:flowgenix@localhost:5432/flowgenix")
+    database_url: str
     
     # Security
-    secret_key: str = os.getenv("SECRET_KEY", "supersecret-change-in-production")
-    access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
-    api_key_encryption_key: str = os.getenv("API_KEY_ENCRYPTION_KEY", "ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg=")
+    secret_key: str
+    access_token_expire_minutes: int = 1440
+    api_key_encryption_key: str
     
     # ChromaDB (Embedded Mode)
-    chroma_persist_directory: str = os.getenv("CHROMA_PERSIST_DIRECTORY", "./chroma_db")
+    chroma_persist_directory: str = "./chroma_db"
     
     # CORS
-    allowed_origins: List[str] = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
+    allowed_origins: Union[List[str], str] = "http://localhost:3000,http://localhost:3001"
     
     # File Upload
-    upload_dir: str = os.getenv("UPLOAD_DIR", "uploaded_docs")
-    max_file_size: int = int(os.getenv("MAX_FILE_SIZE", 10 * 1024 * 1024))  # 10MB
-    allowed_file_types: List[str] = os.getenv("ALLOWED_FILE_TYPES", ".pdf,.txt,.docx").split(",")
+    upload_dir: str = "uploaded_docs"
+    max_file_size: int = 10 * 1024 * 1024  # 10MB
+    allowed_file_types: Union[List[str], str] = ".pdf,.txt,.docx"
     
     # Monitoring
-    prometheus_enabled: bool = os.getenv("PROMETHEUS_ENABLED", "True").lower() == "true"
-    log_level: str = os.getenv("LOG_LEVEL", "INFO")
+    prometheus_enabled: bool = True
+    log_level: str = "INFO"
+
+    @field_validator('allowed_origins', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(',')]
+        return v
+
+    @field_validator('allowed_file_types', mode='before')
+    @classmethod
+    def parse_file_types(cls, v):
+        if isinstance(v, str):
+            return [file_type.strip() for file_type in v.split(',')]
+        return v
 
     class Config:
-        env_file = str(ROOT_DIR / ".env")
         case_sensitive = False
         extra = "ignore"  # Ignore extra fields in .env
 
