@@ -30,7 +30,7 @@ export const OutputNode = ({ id, data, selected }: OutputNodeProps) => {
     >
       <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
         <FileInput className={`w-5 h-5 text-[#444444]/80 scale-x-[-1]`} />
-        <h3 className="font-semibold text-foreground">LLM Engine</h3>
+        <h3 className="font-semibold text-foreground">Output</h3>
       </div>
       <div className="bg-[#EDF3FF] px-4 py-1.5 text-sm text-left">
         Output of the result nodes as text
