@@ -4,22 +4,41 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Eye, EyeOff } from 'lucide-react';
 import { authService } from '@/services/authService';
 import { Button } from '@/components/ui';
 import { Logo } from '@/components/common/logo';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const { isAuthenticated, loading: authLoading, login } = useAuth();
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined' && localStorage.getItem('auth_token')) {
+    // Only redirect if we're not loading and user is authenticated
+    if (!authLoading && isAuthenticated) {
       router.replace('/dashboard');
     }
-  }, [router]);
+  }, [isAuthenticated, authLoading, router]);
+
+  // Show loading while checking auth status
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,8 +46,8 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await authService.login({ email, password });
-      router.push('/dashboard');
+      await login(email, password);
+      router.replace('/dashboard');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
       setError(error.response?.data?.detail || 'Login failed');
@@ -91,16 +110,25 @@ export default function LoginPage() {
             <label className="block text-sm font-medium text-card-foreground mb-2">
               Password
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 bg-input border border-border rounded-lg text-foreground 
-                         focus:ring-2 focus:ring-primary focus:border-transparent 
-                         transition-all duration-200 placeholder:text-muted-foreground"
-              placeholder="Enter your password"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full p-3 pr-12 bg-input border border-border rounded-lg text-foreground 
+                           focus:ring-2 focus:ring-primary focus:border-transparent 
+                           transition-all duration-200 placeholder:text-muted-foreground"
+                placeholder="Enter your password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
           </motion.div>
 
           {error && (

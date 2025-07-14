@@ -1,33 +1,32 @@
 import { Logo } from '@/components/common/logo';
 import { DropdownMenuTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui';
-import { authService } from '@/services';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function DashboardHeader() {
     // hooks
     const router = useRouter();
+    const { user, logout } = useAuth();
     const [userEmail, setUserEmail] = useState<string | null>(null);
 
     // functions
     const handleLogout = async () => {
-        await authService.logout();
-        router.push('/login');
+        try {
+            await logout();
+            router.replace('/login');
+        } catch (error) {
+            console.error('Logout failed:', error);
+            // Navigate to login even if logout fails
+            router.replace('/login');
+        }
     };
 
     useEffect(() => {
-        const fetchUserEmail = async () => {
-            try {
-                const user = await authService.getCurrentUser();
-                setUserEmail(user?.email || null);
-            } catch (error) {
-                console.error('Failed to fetch user email:', error);
-            }
-        };
-
-        fetchUserEmail();
-    }, []);
+        // Use user from context instead of fetching
+        setUserEmail(user?.email || null);
+    }, [user]);
 
     return (
         <header className="border-b border-border bg-card">

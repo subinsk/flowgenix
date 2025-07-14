@@ -3,7 +3,8 @@ import api from './api';
 export interface User {
   id: string;
   email: string;
-  name: string;
+  username?: string;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -15,13 +16,12 @@ export interface LoginCredentials {
 export interface RegisterData {
   email: string;
   password: string;
-  name: string;
+  username?: string;
 }
 
 export interface AuthResponse {
   access_token: string;
   token_type: string;
-  user: User;
 }
 
 function setAuthHeader(token: string | null) {
@@ -35,13 +35,10 @@ function setAuthHeader(token: string | null) {
 export const authService = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const response = await api.post('/auth/login', credentials);
-    const { access_token } = response.data;
-    localStorage.setItem('auth_token', access_token);
-    setAuthHeader(access_token);
     return response.data;
   },
 
-  register: async (userData: RegisterData): Promise<AuthResponse> => {
+  register: async (userData: RegisterData): Promise<User> => {
     const response = await api.post('/auth/register', userData);
     return response.data;
   },
@@ -49,15 +46,13 @@ export const authService = {
   logout: async (): Promise<void> => {
     try {
       await api.post('/auth/logout');
-    } finally {
-      localStorage.removeItem('auth_token');
-      setAuthHeader(null);
     }
+    catch (error) {
+      console.error('Logout failed:', error);
+    } 
   },
 
   getCurrentUser: async (): Promise<User> => {
-    const token = localStorage.getItem('auth_token');
-    setAuthHeader(token);
     const response = await api.get('/auth/me');
     return response.data;
   },

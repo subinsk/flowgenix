@@ -325,7 +325,7 @@ export const LLMEngineNode = ({ id, data, selected }: LLMEngineNodeProps) => {
               </div>
             </div>
           </div>
-          <div className="flex flex-col gap-1 w-full mt-8">
+          <div className="flex flex-col gap-3 w-full mt-8">
             <div className="flex items-center justify-between gap-4">
               <label htmlFor={`webSearch-${id}`} className="text-xs font-medium text-muted-foreground">
                 Enable Web Search
@@ -334,7 +334,16 @@ export const LLMEngineNode = ({ id, data, selected }: LLMEngineNodeProps) => {
                 id={`webSearch-${id}`}
                 checked={webSearchEnabled}
                 onCheckedChange={(enabled) => {
-                  data?.onUpdate?.(id, { data: { ...data, webSearchEnabled: enabled } });
+                  data?.onUpdate?.(id, { 
+                    data: { 
+                      ...data, 
+                      webSearchEnabled: enabled,
+                      config: {
+                        ...data?.config,
+                        webSearchEnabled: enabled
+                      }
+                    } 
+                  });
                 }}
                 className="nodrag"
                 onMouseDown={(e) => e.stopPropagation()}
@@ -345,45 +354,58 @@ export const LLMEngineNode = ({ id, data, selected }: LLMEngineNodeProps) => {
             {webSearchEnabled && (
               <>
                 <Separator />
-                <div className="mt-5">
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">SERP API Key</label>
-                  <div className="relative">
-                    <input
-                      type={showSerpKey ? "text" : "password"}
-                      className={`w-full p-2 pr-8 text-sm bg-input border border-border rounded focus:ring-2 focus:ring-primary focus:border-transparent nodrag ${serpKeyErrors.length > 0 ? "border-destructive ring-1 ring-destructive" : "border-border"}`}
-                      placeholder="Enter SERP API key..."
-                      value={data?.serpApiKey || ''}
-                      onChange={e => {
-                        data?.onUpdate?.(id, { data: { ...data, serpApiKey: e.target.value } });
-                        if (e.target.value && typeof data?.clearValidationError === 'function') {
-                          data.clearValidationError(id, 'llmEngine', 'serpApiKey');
-                        }
-                      }}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onFocus={(e) => e.stopPropagation()}
-                      onClick={(e) => e.stopPropagation()}
-                      aria-invalid={serpKeyErrors.length > 0}
-                      aria-describedby={serpKeyErrors.length > 0 ? `${id}-serp-key-error` : undefined}
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground nodrag"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowSerpKey(!showSerpKey);
-                      }}
-                      onMouseDown={(e) => e.stopPropagation()}
-                    >
-                      {showSerpKey ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-                  {serpKeyErrors.length > 0 && (
-                    <div id={`${id}-serp-key-error`} className="text-xs text-destructive mt-1">
-                      {serpKeyErrors.map((err, idx) => (
-                        <div key={idx}>{err.error}</div>
-                      ))}
+                <div className="space-y-3 mt-3">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">
+                      SerpAPI Key
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showSerpKey ? "text" : "password"}
+                        className={`w-full p-2 pr-8 text-sm bg-input border border-border rounded focus:ring-2 focus:ring-primary focus:border-transparent nodrag ${serpKeyErrors.length > 0 ? "border-destructive ring-1 ring-destructive" : "border-border"}`}
+                        placeholder="Enter SerpAPI API key..."
+                        value={data?.serpApiKey || ''}
+                        onChange={e => {
+                          data?.onUpdate?.(id, { 
+                            data: { 
+                              ...data, 
+                              serpApiKey: e.target.value,
+                              config: {
+                                ...data?.config,
+                                serpApiKey: e.target.value
+                              }
+                            } 
+                          });
+                          if (e.target.value && typeof data?.clearValidationError === 'function') {
+                            data.clearValidationError(id, 'llmEngine', 'serpApiKey');
+                          }
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-invalid={serpKeyErrors.length > 0}
+                        aria-describedby={serpKeyErrors.length > 0 ? `${id}-serp-key-error` : undefined}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground nodrag"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowSerpKey(!showSerpKey);
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        {showSerpKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
                     </div>
-                  )}
+                    {serpKeyErrors.length > 0 && (
+                      <div id={`${id}-serp-key-error`} className="text-xs text-destructive mt-1">
+                        {serpKeyErrors.map((err, idx) => (
+                          <div key={idx}>{err.error}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </>
             )}

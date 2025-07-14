@@ -410,12 +410,16 @@ class WorkflowService:
                 print(f"DEBUG LLM Engine: Final API key available: {bool(llm_api_key)}")
                 print(f"DEBUG LLM Engine: Model for AI service call: {model}")
                 
-                # If web search is enabled, perform search first
-                if node_config.get("webSearchEnabled", False):
+                # Web search integration
+                webSearchEnabled = node_config.get("webSearchEnabled", False)
+                
+                if webSearchEnabled:
                     search_provider = "serpapi"  # Default to serpapi for web search
                     search_api_key = node_config.get("serpApiKey") or stored_api_keys.get("serpapi")
                     
                     if search_api_key:
+                        print(f"DEBUG: Performing search with query: '{current_output}' using {search_provider}")
+                        
                         search_results = await self.search_service.search(
                             query=current_output,
                             provider=search_provider,
@@ -425,11 +429,20 @@ class WorkflowService:
                         
                         if search_results:
                             context["search_results"] = search_results
-                            formatted_results = "\n".join([
-                                f"Title: {result.get('title', '')}\nURL: {result.get('url', '')}\nSnippet: {result.get('snippet', '')}\n"
-                                for result in search_results[:3]  # Limit to top 3 results
-                            ])
-                            system_prompt += f"\n\nCurrent web search results for the query:\n{formatted_results}"
+                            
+                            # Use enhanced formatting from search service
+                            search_context = self.search_service.format_search_results_for_llm(
+                                results=search_results,
+                                search_analysis=None,
+                                max_results=5
+                            )
+                            
+                            system_prompt += f"\n\n{search_context}"
+                            print(f"DEBUG: Added {len(search_results)} search results to context")
+                        else:
+                            print(f"DEBUG: No search results found for query: '{current_output}'")
+                    else:
+                        print(f"DEBUG: No API key available for {search_provider} search")
                 
                 # Add document context to system prompt if available
                 if "knowledge_context" in context and context["knowledge_context"]:
@@ -488,3 +501,40 @@ class WorkflowService:
             "completed_at": datetime.utcnow().isoformat()
         }
         return convert_uuids(result)
+
+    def _enhance_system_prompt_for_search(self, base_prompt: str, search_analysis: Dict[str, Any], has_search_results: bool) -> str:
+        """Enhance system prompt based on search analysis"""
+        if not search_analysis or not has_search_results:
+            return base_prompt
+        
+        search_type = search_analysis.get("search_type", "general")
+        
+        if search_type == "current_info":
+            enhancement = """
+You have access to current web information. Your responses should:
+- Focus on the most recent and up-to-date information available
+- Mention timeframes and dates when relevant
+- Highlight any breaking news or recent developments
+- Use phrases like "As of 2024" or "Recent information shows" when appropriate"""
+
+        elif search_type == "factual":
+            enhancement = """
+You have access to factual web information. Your responses should:
+- Provide accurate, well-sourced information
+- Focus on established facts and verified data
+- Reference authoritative sources when possible
+- Distinguish between facts and opinions"""
+
+        elif search_type == "analysis":
+            enhancement = """
+You have access to comparative web information. Your responses should:
+- Provide balanced analysis from multiple perspectives
+- Compare different viewpoints or options
+- Highlight pros and cons when relevant
+- Support conclusions with evidence from multiple sources"""
+
+        else:
+            enhancement = """
+You have access to current web information. Use the search results to provide comprehensive, accurate responses."""
+
+        return base_prompt + enhancement
