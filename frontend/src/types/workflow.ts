@@ -17,9 +17,9 @@ export interface ChatInterfaceProps {
 }
 
 export interface NodeConfigurationPanelProps {
-  selectedNode: any;
+  selectedNode: WorkflowNode | null;
   onClose: () => void;
-  onUpdateNode: (nodeId: string, updates: any) => void;
+  onUpdateNode: (nodeId: string, updates: Partial<WorkflowNode>) => void;
   onDeleteNode: (nodeId: string) => void;
 }
 
@@ -37,20 +37,25 @@ export interface NodeWrapperProps {
 
 export interface WorkflowComponent {
   id: string;
-  type: 'user-query' | 'knowledge-base' | 'llm-engine' | 'web-search' | 'output';
+  type: string;
   name: string;
   description: string;
   icon: string;
-  config: Record<string, any>;
+  config: Record<string, string | number | boolean>;
 }
 
+// Base WorkflowNode interface for API compatibility
 export interface WorkflowNode extends Node {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
   data: {
-    label: string;
-    type: WorkflowComponent['type'];
-    config?: Record<string, any>;
-    status?: 'idle' | 'running' | 'completed' | 'error';
-    output?: any;
+    label?: string;
+    type?: WorkflowComponent['type'];
+    config?: Record<string, string | number | boolean>;
+    status?: WorkflowStatus;
+    output?: string | number | boolean | Record<string, unknown>;
+    [key: string]: unknown;
   };
 }
 
@@ -58,10 +63,12 @@ export interface WorkflowEdge {
   id: string;
   source: string;
   target: string;
+  sourceHandle?: string;
+  targetHandle?: string;
   type?: string;
   animated?: boolean;
-  style?: Record<string, any>;
-  data?: Record<string, any>;
+  style?: Record<string, string | number | boolean>;
+  data?: Record<string, string | number | boolean>;
 }
 
 export interface Workflow {
@@ -70,10 +77,10 @@ export interface Workflow {
   description?: string;
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
-  createdAt: Date;
-  updatedAt: Date;
-  ownerId: string;
-  status: string
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+  status: WorkflowStatus;
 }
 
 export type WorkflowStatus = keyof typeof STATUS_MAP;
@@ -96,7 +103,7 @@ export interface Document {
   status: 'uploading' | 'processing' | 'ready' | 'error';
   url?: string;
   embeddings?: number[][];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 export interface DocumentUploadOptions {
@@ -112,8 +119,8 @@ export interface ExecutionStep {
   status: 'pending' | 'running' | 'completed' | 'error';
   startTime?: Date;
   endTime?: Date;
-  input?: any;
-  output?: any;
+  input?: string | number | boolean | Record<string, unknown>;
+  output?: string | number | boolean | Record<string, unknown>;
   error?: string;
 }
 
@@ -124,7 +131,7 @@ export interface WorkflowExecution {
   steps: ExecutionStep[];
   startTime: Date;
   endTime?: Date;
-  result?: any;
+  result?: string | number | boolean | Record<string, unknown>;
   error?: string;
 }
 
@@ -140,4 +147,47 @@ export interface SearchOptions {
   maxResults?: number;
   country?: string;
   language?: string;
+}
+
+// UI-specific workflow interface that converts backend format to frontend format
+export interface UIWorkflow {
+  id: string;
+  name: string;
+  description?: string;
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+  createdAt: Date;
+  updatedAt: Date;
+  userId: string;
+  status: WorkflowStatus;
+}
+
+// Helper function to convert backend Workflow to UI Workflow
+export function toUIWorkflow(workflow: Workflow): UIWorkflow {
+  return {
+    id: workflow.id,
+    name: workflow.name,
+    description: workflow.description,
+    nodes: workflow.nodes,
+    edges: workflow.edges,
+    createdAt: new Date(workflow.created_at),
+    updatedAt: new Date(workflow.updated_at),
+    userId: workflow.user_id,
+    status: workflow.status,
+  };
+}
+
+// Helper function to convert UI Workflow to backend Workflow
+export function fromUIWorkflow(uiWorkflow: UIWorkflow): Workflow {
+  return {
+    id: uiWorkflow.id,
+    name: uiWorkflow.name,
+    description: uiWorkflow.description,
+    nodes: uiWorkflow.nodes,
+    edges: uiWorkflow.edges,
+    created_at: uiWorkflow.createdAt.toISOString(),
+    updated_at: uiWorkflow.updatedAt.toISOString(),
+    user_id: uiWorkflow.userId,
+    status: uiWorkflow.status,
+  };
 }

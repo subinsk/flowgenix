@@ -1,9 +1,21 @@
-import { FileInput, MessageSquare } from "lucide-react";
+import { FileInput } from "lucide-react";
 import { NodeWrapper } from "@/components";
 import { CustomHandle } from "./CustomHandle";
 import { Position } from "@xyflow/react";
 
-export const UserQueryNode = ({ id, data, selected }: any) => {
+interface UserQueryNodeData {
+  onSettings?: () => void;
+  onDelete?: () => void;
+  validationErrors?: Array<{ error: string }>;
+}
+
+interface UserQueryNodeProps {
+  id: string;
+  data: UserQueryNodeData;
+  selected: boolean;
+}
+
+export const UserQueryNode = ({ id, data, selected }: UserQueryNodeProps) => {
   return (
     <NodeWrapper
       type="userQuery"
@@ -12,7 +24,7 @@ export const UserQueryNode = ({ id, data, selected }: any) => {
       onSettings={data?.onSettings}
       onDelete={data?.onDelete}
       id={id}
-      validationErrors={[]}
+      validationErrors={Array.isArray(data?.validationErrors) ? data.validationErrors.map(e => e.error) : []}
     >
       <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
         <FileInput className={`w-5 h-5 text-[#444444]/80`} />

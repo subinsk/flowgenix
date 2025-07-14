@@ -42,7 +42,7 @@ const NotificationToast: React.FC = () => {
   return (
     <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
       <AnimatePresence>
-        {notifications.map((notification, index) => (
+        {notifications.map((notification) => (
           <motion.div
             key={notification.id}
             initial={{ opacity: 0, x: 300, scale: 0.8 }}

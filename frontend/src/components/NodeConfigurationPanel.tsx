@@ -2,21 +2,70 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Settings, Trash2, Upload, Download, HelpCircle, Eye, EyeOff, Key } from 'lucide-react';
+import { X, Trash2, Upload, Download, HelpCircle, Eye, EyeOff, Key } from 'lucide-react';
 import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui';
 import ApiKeyManager from './ApiKeyManager';
 import { apiKeyService } from '@/services/apiKeyService';
 import { NODE_TYPE_MAP } from '@/constants';
 import { PROMPT_TEMPLATES } from '@/constants/promptTemplates';
 
+
 interface NodeConfigurationPanelProps {
-  selectedNode: any;
+  selectedNode: {
+    id: string;
+    type?: string;
+    data?: NodeConfig;
+  };
   onClose: () => void;
-  onUpdateNode: (nodeId: string, updates: any) => void;
+  onUpdateNode: (nodeId: string, updates: { data: NodeConfig }) => void;
   onDeleteNode: (nodeId: string) => void;
 }
 
-const predefinedConfigs = {
+
+// Define config types for each node type
+type UserQueryConfig = {
+  query?: string;
+  queryType?: 'general' | 'analysis' | 'summary' | 'extraction';
+};
+
+type KnowledgeBaseConfig = {
+  embeddingModel?: string;
+  chunkSize?: number;
+  apiKey?: string;
+};
+
+type LLMEngineConfig = {
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  webSearchEnabled?: boolean;
+  serpApiKey?: string;
+  apiKey?: string;
+};
+
+type OutputConfig = {
+  format?: 'markdown' | 'text' | 'json' | 'html';
+  includeMetadata?: boolean;
+  saveToFile?: boolean;
+};
+
+type NodeConfig = UserQueryConfig & KnowledgeBaseConfig & LLMEngineConfig & OutputConfig & {
+  [key: string]: unknown;
+};
+
+// Predefined config types
+type PredefinedUserQuery = { name: string; query: string };
+type PredefinedKnowledgeBase = { name: string; model: string; chunkSize: number };
+type PredefinedLLMEngine = { name: string; model: string; temperature: number; maxTokens: number; systemPrompt: string };
+type PredefinedOutput = { name: string; format: 'markdown' | 'text' | 'json' | 'html'; includeMetadata: boolean };
+
+
+const predefinedConfigs: {
+  userQuery: PredefinedUserQuery[];
+  knowledgeBase: PredefinedKnowledgeBase[];
+  llmEngine: PredefinedLLMEngine[];
+  output: PredefinedOutput[];
+} = {
   userQuery: [
     { name: 'Simple Query', query: 'What is the main topic?' },
     { name: 'Detailed Analysis', query: 'Provide a detailed analysis of the content including key points, insights, and recommendations.' },
@@ -52,14 +101,13 @@ export default function NodeConfigurationPanel({
   onUpdateNode,
   onDeleteNode
 }: NodeConfigurationPanelProps) {
-  const [config, setConfig] = useState(selectedNode?.data || {});
+  const [config, setConfig] = useState<NodeConfig>(selectedNode?.data || {});
   const [showApiKey, setShowApiKey] = useState(false);
   const [showSerpKey, setShowSerpKey] = useState(false);
   const [showApiKeyManager, setShowApiKeyManager] = useState(false);
   const [hasStoredKeys, setHasStoredKeys] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    // Check for stored API keys
     const checkStoredKeys = async () => {
       const keyChecks = await Promise.all([
         apiKeyService.hasApiKey('openai'),
@@ -77,18 +125,21 @@ export default function NodeConfigurationPanel({
     };
 
     checkStoredKeys();
-  }, [showApiKeyManager]); // Refresh when API key manager is closed
+  }, [showApiKeyManager]);
 
   if (!selectedNode) return null;
 
-  const handleConfigChange = (key: string, value: any) => {
+  const handleConfigChange = (key: string, value: unknown) => {
     const updatedConfig = { ...config, [key]: value };
     setConfig(updatedConfig);
     onUpdateNode(selectedNode.id, { data: updatedConfig });
   };
 
-  const applyPredefinedConfig = (preconfig: any) => {
-    const updatedConfig = { ...config, ...preconfig };
+  const applyPredefinedConfig = (preconfig: PredefinedUserQuery | PredefinedKnowledgeBase | PredefinedLLMEngine | PredefinedOutput) => {
+    // Omit 'name' property when merging
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { name: _, ...rest } = preconfig;
+    const updatedConfig = { ...config, ...rest };
     setConfig(updatedConfig);
     onUpdateNode(selectedNode.id, { data: updatedConfig });
   };
@@ -470,10 +521,11 @@ export default function NodeConfigurationPanel({
   };
 
   const getNodeIcon = () => {
-    const { icon } = NODE_TYPE_MAP[selectedNode.type]
-    const Icon = icon;
+    if (!selectedNode.type) return null;
+    const nodeType = NODE_TYPE_MAP[selectedNode.type];
+    if (!nodeType) return null;
+    const Icon = nodeType.icon;
     return <Icon className="w-10 h-10 text-[#444444]" />
-
   };
 
   const getNodeName = () => {
@@ -486,7 +538,9 @@ export default function NodeConfigurationPanel({
     }
   };
 
-  const preconfigs = predefinedConfigs[selectedNode.type as keyof typeof predefinedConfigs] || [];
+  const preconfigs = selectedNode.type ? 
+    (predefinedConfigs[selectedNode.type as keyof typeof predefinedConfigs] || []) : 
+    [];
 
   return (
     <AnimatePresence>

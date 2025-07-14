@@ -3,7 +3,7 @@
 import React from 'react';
 import { Logo } from '@/components/common/logo';
 import { Button, DropdownMenuTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui';
-import { ChevronLeft, AlertCircle, CheckCircle, Save, Undo, Redo } from 'lucide-react';
+import {  AlertCircle, CheckCircle, Save, Undo, Redo } from 'lucide-react';
 import { NodeFieldError } from '@/hooks/useWorkflowValidation';
 import { STATUS_MAP } from '@/constants';
 import { authService } from '@/services';
@@ -14,13 +14,13 @@ import { useEffect, useState } from 'react';
 interface WorkflowHeaderProps {
   workflow: {
     name: string;
-    description: string;
-    status?: string; // Add status to workflow interface
+    description?: string;
+    status?: string;
   };
   isWorkflowValid: boolean;
   validationErrors: NodeFieldError[];
   showValidationErrors: boolean;
-  hasValidated: boolean; // Add this to know if validation has been triggered
+  hasValidated: boolean;
   onBack: () => void;
   onSave: () => void;
   onUndo?: () => void;
@@ -36,7 +36,6 @@ export default function WorkflowHeader({
   validationErrors,
   showValidationErrors,
   hasValidated,
-  onBack,
   onSave,
   onUndo,
   onRedo,

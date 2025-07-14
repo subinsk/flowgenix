@@ -2,23 +2,33 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Button } from '../../../shared/components';
+import { Button } from '@/shared/components';
 import { ChevronLeft, AlertCircle, Menu, FolderPen } from 'lucide-react';
 import { NODE_TYPE_MAP } from '@/constants';
-import { NodeFieldError } from '../../../hooks/useWorkflowValidation';
+import { NodeFieldError } from '@/hooks/useWorkflowValidation';
+
+interface Workflow {
+  name: string;
+  description?: string;
+  status?: string;
+}
+
+interface SelectedWorkflow {
+  id: string;
+  name: string;
+  description?: string;
+  status?: string;
+  [key: string]: unknown;
+}
 
 interface ComponentSidebarProps {
-  workflow: {
-    name: string;
-    description: string;
-    status?: string; // Add status to workflow interface
-  };
+  workflow: Workflow;
   collapsed: boolean;
   validationErrors: NodeFieldError[];
   showValidationErrors: boolean;
   onToggleCollapse: () => void;
-  onDragStart: (event: React.DragEvent, nodeType: string) => void;
-  setSelectedWorkflow: (workflow: any) => void;
+  onDragStart: (event: React.DragEvent<HTMLDivElement>, nodeType: string) => void;
+  setSelectedWorkflow: (workflow: SelectedWorkflow | null) => void;
   setIsEditWorkflow: (isEdit: boolean) => void;
 }
 
@@ -47,7 +57,7 @@ export default function ComponentSidebar({
           {workflow.name}
         </span>
         <Button variant="ghost" size='sm' className='hover:bg-muted-foreground/10' onClick={() => {
-          setSelectedWorkflow(workflow);
+          setSelectedWorkflow({ ...workflow, id: 'temp-id' });
           setIsEditWorkflow(true);
         }}>
           <FolderPen />
@@ -76,10 +86,12 @@ export default function ComponentSidebar({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 className="px-2 py-1 bg-background border border-border rounded-lg cursor-grab hover:border-primary transition-colors flex items-center justify-between text-[#444444]"
-                draggable
-                onDragStart={(event) => onDragStart(event as any, component.id)}
               >
-                <div className='flex items-center gap-2'>
+                <div
+                  className='flex items-center gap-2'
+                  draggable
+                  onDragStart={(event: React.DragEvent<HTMLDivElement>) => onDragStart(event, component.id)}
+                >
                   <div className="w-8 h-8 rounded-md flex items-center justify-center text-sm">
                     <Icon className={`w-5 h-5 text-[#444444]/80 ${component.label === "Output" ? "scale-x-[-1]" : ""}`} />
                   </div>

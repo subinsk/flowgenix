@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Key, Eye, EyeOff, Save, Trash2, Plus } from 'lucide-react';
+import { X, Key, Eye, EyeOff, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { apiKeyService, ApiKeyResponse } from '@/services/apiKeyService';
 
@@ -54,10 +54,8 @@ export default function ApiKeyManager({ isOpen, onClose }: ApiKeyManagerProps) {
         api_key: keyValue
       });
       
-      // Reload API keys
       await loadApiKeys();
       
-      // Clear the input
       setNewKeys(prev => ({ ...prev, [keyName]: '' }));
       setShowKeys(prev => ({ ...prev, [keyName]: false }));
     } catch (error) {

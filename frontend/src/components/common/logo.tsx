@@ -9,7 +9,6 @@ export function Logo({
     className?: string;
     type?: "light" | "dark";
     variant?: "small" | "large";
-    [key: string]: any;
 }) {
     const getLogoSrc = () => {
         if (variant === "small") {

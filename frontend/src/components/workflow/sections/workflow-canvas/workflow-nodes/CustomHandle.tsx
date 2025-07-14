@@ -3,10 +3,19 @@ import { NODE_TYPE_MAP } from "@/constants"
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 
-interface ConnectableNode {
-    id: string;
-    label: string;
-    icon: React.ComponentType<any>;
+
+interface CustomHandleProps {
+    type: 'source' | 'target';
+    position: Position;
+    id?: string;
+    label?: string | React.ReactNode;
+    className?: string;
+    style?: React.CSSProperties;
+    showTooltipProp?: boolean;
+    tooltipComponents?: Array<keyof typeof NODE_TYPE_MAP>;
+    isValidConnection?: (connection: Connection | Edge) => boolean;
+    labelClassname?: string;
+    [key: string]: unknown;
 }
 
 export const CustomHandle = ({
@@ -21,20 +30,8 @@ export const CustomHandle = ({
     isValidConnection: customValidation,
     labelClassname = "",
     ...props
-}: {
-    type: 'source' | 'target';
-    position: Position;
-    id?: string;
-    label?: string | React.ReactNode;
-    className?: string;
-    style?: React.CSSProperties;
-    showTooltipProp?: boolean;
-    tooltipComponents?: Array<any>;
-    isValidConnection?: (connection: Connection | Edge) => boolean;
-    labelClassname?: string;
-    [key: string]: any;
-}) => {
-    const [showTooltip, setShowTooltip] = useState(false);
+}: CustomHandleProps) => {
+    const [showTooltip, setShowTooltip] = useState<boolean>(false);
 
     const defaultValidation = (connection: Connection | Edge): boolean => {
         if (!connection.source || !connection.target) return false;
@@ -52,7 +49,6 @@ export const CustomHandle = ({
 
         if (!sourceType || !targetType) return false;
 
-        // Handle specific connections for LLM Engine with multiple input handles
         if (targetType === 'llmEngine' && connection.targetHandle) {
             if (connection.targetHandle === 'context') {
                 return sourceType === 'knowledgeBase';
@@ -61,7 +57,6 @@ export const CustomHandle = ({
             }
         }
 
-        // General validation using NODE_TYPE_MAP
         const sourceNodeConfig = NODE_TYPE_MAP[sourceType];
         const targetNodeConfig = NODE_TYPE_MAP[targetType];
 
@@ -75,7 +70,6 @@ export const CustomHandle = ({
 
     return (
         <div className={`flex items-center gap-2 ${labelClassname}`}>
-            {/* Label after handle for source/right handles */}
             {label && (type === 'source' || position === Position.Right) && (
                 <div className="text-xs ml-2 px-2 py-1 text-muted-foreground font-medium">
                     {label}
@@ -101,7 +95,6 @@ export const CustomHandle = ({
                     {...props}
                 />
 
-                {/* Tooltip */}
                 {showTooltip && tooltipComponents && (
                     <AnimatePresence>
                         <motion.div
@@ -114,25 +107,22 @@ export const CustomHandle = ({
                         >
                             <div className="text-xs flex flex-col gap-2 w-full">
                                 <div className="font-semibold mb-1">Can connect to:</div>
-                                {
-                                    tooltipComponents.map((component, index) => {
-                                        const Icon = NODE_TYPE_MAP[component].icon
-                                        return (
-                                            <div key={index} className="flex items-center gap-2">
-                                                <Icon className={`w-4 h-4 text-[#444444]/80 ${component.label === "Output" ? "scale-x-[-1]" : ""}`} />
-                                                <span>
-                                                    {NODE_TYPE_MAP[component]?.label}
-                                                </span>
-                                            </div>
-                                        )
-                                    })
-                                }
+                                {tooltipComponents.map((component, index) => {
+                                    const Icon = NODE_TYPE_MAP[component].icon;
+                                    return (
+                                        <div key={index} className="flex items-center gap-2">
+                                            <Icon className={`w-4 h-4 text-[#444444]/80 ${NODE_TYPE_MAP[component].label === "Output" ? "scale-x-[-1]" : ""}`} />
+                                            <span>
+                                                {NODE_TYPE_MAP[component]?.label}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </motion.div>
                     </AnimatePresence>
                 )}
             </div>
-            {/* Label before handle for target/left handles */}
             {label && (type === 'target' || position === Position.Left) && (
                 <div className="text-xs mr-2 px-2 py-1 text-muted-foreground font-medium">
                     {label}

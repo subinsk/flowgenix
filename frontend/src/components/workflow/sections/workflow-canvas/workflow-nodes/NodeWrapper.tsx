@@ -1,6 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { Handle, Position } from '@xyflow/react';
-import { Eye, EyeOff, Trash2, Settings, MessageSquare, BookOpen, Brain, Monitor, AlertCircle } from 'lucide-react';
+import React, { useCallback } from 'react';
+import { Settings} from 'lucide-react';
 import { NodeWrapperProps } from '@/types';
 import { Button } from '@/components/ui/button';
 
@@ -8,11 +7,7 @@ export const  NodeWrapper: React.FC<NodeWrapperProps> = ({
   children, 
   type, 
   selected, 
-  hasSource = true, 
-  hasTarget = true,
   onSettings,
-  onDelete,
-  id,
   validationErrors = []
 }) => {
   const hasErrors = validationErrors.length > 0;
@@ -22,12 +17,6 @@ export const  NodeWrapper: React.FC<NodeWrapperProps> = ({
     e.preventDefault();
     onSettings?.();
   }, [onSettings]);
-
-  const handleDelete = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    onDelete?.(id);
-  }, [onDelete, id]);
 
   return (
     <div 

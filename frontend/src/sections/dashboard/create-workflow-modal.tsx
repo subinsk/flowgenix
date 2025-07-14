@@ -21,7 +21,7 @@ import { z } from "zod";
 import { useState, Dispatch, SetStateAction, useEffect } from "react";
 import { useNotifications } from "@/hooks";
 import { workflowService } from "@/services";
-import { DashboardWorkflow, Workflow, WorkflowStatus } from "@/types";
+import { DashboardWorkflow, WorkflowStatus } from "@/types";
 import { STATUS_MAP } from "@/constants";
 
 const formSchema = z.object({
@@ -117,6 +117,7 @@ export function CreateWorkflowModal({ isModalOpen, setIsModalOpen, setWorkflows,
                 showSuccess('Workflow Updated', `"${formattedUpdatedWorkflow.name}" has been updated successfully!`);
             }
         } catch (error) {
+            console.error('Workflow creation error:', error);
             showError(`Workflow Error`, `Failed to ${mode === 'create' ? 'create' : 'update'} workflow`);
         } finally {
             setSubmitting(false);

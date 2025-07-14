@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { authService } from '../../services/authService';
+import { authService } from '@/services/authService';
 import { Button } from '@/components/ui';
 import { Logo } from '@/components/common/logo';
 
@@ -29,8 +29,9 @@ export default function LoginPage() {
     try {
       await authService.login({ email, password });
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      setError(error.response?.data?.detail || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -139,7 +140,7 @@ export default function LoginPage() {
               <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-card text-muted-foreground">Don't have an account?</span>
+              <span className="px-2 bg-card text-muted-foreground">Don&apos;t have an account?</span>
             </div>
           </div>
 

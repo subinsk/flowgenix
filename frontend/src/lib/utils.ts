@@ -17,7 +17,17 @@ export function formatTimestamp(timestamp: Date | string) {
   return date.toLocaleString();
 }
 
-export function validateWorkflow(nodes: any[], edges: any[]) {
+// Type for workflow node
+export interface WorkflowValidationNode {
+  type: string;
+  data?: {
+    type?: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+export function validateWorkflow(nodes: WorkflowValidationNode[]) {
   // Basic workflow validation
   if (nodes.length === 0) {
     return {
@@ -41,7 +51,7 @@ export function validateWorkflow(nodes: any[], edges: any[]) {
   return { isValid: true, error: null };
 }
 
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {

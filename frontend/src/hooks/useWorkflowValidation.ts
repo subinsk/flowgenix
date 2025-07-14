@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import { Node, Edge } from '@xyflow/react';
 
 export interface NodeFieldError {
@@ -104,7 +104,7 @@ export function useWorkflowValidation(nodes: Node[], edges: Edge[]) {
     }
 
     return isValid;
-  }, [nodes, validateNode, hasValidated]);
+  }, [nodes, edges, validateNode, hasValidated]);
 
   const triggerValidation = useCallback(() => {
     console.log('triggerValidation called');

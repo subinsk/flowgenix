@@ -1,18 +1,16 @@
 import { ChatInterfaceProps } from '@/types';
-import { ChatMessage } from '@/types/chat';
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User, Copy, RefreshCw, MessageSquare, Clock } from 'lucide-react';
+import { RefreshCw, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Markdown } from '@/components/ui/markdown';
 import { Logo } from '@/components/common/logo';
-import { DialogFooter, DialogHeader, DialogTitle, Separator, Textarea } from '@/components/ui';
+import { DialogHeader, DialogTitle, Separator, Textarea } from '@/components/ui';
 import { Icon as Iconify } from '@iconify/react';
 import Image from 'next/image';
 
 export function ChatInterface({ messages = [], onSendMessage, isLoading = false, chatLoading }: ChatInterfaceProps) {
-  const [inputValue, setInputValue] = useState('');
-  const [isFocused, setIsFocused] = useState(false);
+  const [inputValue, setInputValue] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -38,36 +36,6 @@ export function ChatInterface({ messages = [], onSendMessage, isLoading = false,
       onSendMessage(inputValue.trim());
       setInputValue('');
     }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-  };
-
-  const formatTimestamp = (timestamp: string | Date | undefined | null) => {
-    if (!timestamp) return '';
-    let dateObj: Date;
-    if (typeof timestamp === 'string') {
-      const parsed = Date.parse(timestamp);
-      if (isNaN(parsed)) return '';
-      dateObj = new Date(parsed);
-    } else if (timestamp instanceof Date) {
-      if (isNaN(timestamp.getTime())) return '';
-      dateObj = timestamp;
-    } else {
-      return '';
-    }
-    return new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(dateObj);
   };
 
   return (
@@ -161,9 +129,6 @@ export function ChatInterface({ messages = [], onSendMessage, isLoading = false,
               placeholder={isLoading || chatLoading ? "Thinking..." : "Send a message"}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              // onKeyDown={handleKeyDown}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
               disabled={isLoading || chatLoading}
               style={{ height: "80px" }}
             />

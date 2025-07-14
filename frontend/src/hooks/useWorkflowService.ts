@@ -2,32 +2,34 @@ import { useState, useCallback } from 'react';
 import { Node, Edge } from '@xyflow/react';
 import { workflowService } from '../services/workflowService';
 import { useNotifications } from '.';
+import { UIWorkflow, Workflow } from '@/types';
 
-interface WorkflowData {
+interface WorkflowData extends UIWorkflow {
+  lastModified?: string;
+}
+
+interface WorkflowNodeApiData<T = Record<string, string | number | boolean | Record<string, unknown>>> {
   id: string;
-  name: string;
-  description: string;
-  status: 'draft' | 'ready' | 'running' | 'paused';
-  lastModified: string;
+  type: string;
+  position: { x: number; y: number };
+  data: T;
+}
+
+interface WorkflowEdgeApiData<T = Record<string, string | number | boolean | Record<string, unknown>>> {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle?: string;
+  targetHandle?: string;
+  data?: T;
 }
 
 interface WorkflowApiData {
-  nodes: Array<{
-    id: string;
-    type: string;
-    position: { x: number; y: number };
-    data: Record<string, any>;
-  }>;
-  edges: Array<{
-    id: string;
-    source: string;
-    target: string;
-    sourceHandle?: string;
-    targetHandle?: string;
-  }>;
+  nodes: Array<WorkflowNodeApiData>;
+  edges: Array<WorkflowEdgeApiData>;
 }
 
-export function useWorkflowService(workflowId: string) {
+export function useWorkflowService() {
   const { showSuccess, showError } = useNotifications();
   const [isBuilding, setIsBuilding] = useState(false);
 
@@ -43,7 +45,7 @@ export function useWorkflowService(workflowId: string) {
           id: node.id,
           type: node.type || 'unknown',
           position: node.position,
-          data: node.data || {}
+          data: (node.data || {}) as Record<string, string | number | boolean | Record<string, unknown>>
         })),
         edges: edges.map(edge => ({
           id: edge.id,
@@ -60,7 +62,7 @@ export function useWorkflowService(workflowId: string) {
           name: workflow.name,
           description: workflow.description,
           ...workflowData
-        });
+        } as Omit<Workflow, 'id' | 'status' | 'created_at' | 'updated_at' | 'user_id'>);
         setWorkflow(prev => ({ ...prev, id: newWorkflow.id }));
         showSuccess('Created', 'Workflow created and saved successfully');
       } else {
@@ -69,11 +71,11 @@ export function useWorkflowService(workflowId: string) {
           name: workflow.name,
           description: workflow.description,
           ...workflowData
-        });
+        } as Partial<Workflow>);
         showSuccess('Saved', 'Workflow saved successfully');
       }
       setWorkflow(prev => ({ ...prev, lastModified: new Date().toISOString() }));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving workflow:', error);
       showError('Save Error', 'Failed to save workflow');
     }
@@ -98,7 +100,7 @@ export function useWorkflowService(workflowId: string) {
           id: node.id,
           type: node.type || 'unknown',
           position: node.position,
-          data: node.data || {}
+          data: (node.data || {}) as Record<string, string | number | boolean | Record<string, unknown>>
         })),
         edges: edges.map(edge => ({
           id: edge.id,
@@ -120,7 +122,7 @@ export function useWorkflowService(workflowId: string) {
           setShowValidationErrors(true);
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error building workflow:', error);
       showError('Build Failed', 'Failed to build workflow. Please try again.');
     } finally {
@@ -132,9 +134,15 @@ export function useWorkflowService(workflowId: string) {
     try {
       const response = await workflowService.executeWorkflow(workflowId, { query });
       return response.result?.result || 'Workflow execution completed successfully';
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error executing workflow:', error);
-      throw new Error(error.response?.data?.detail || error.message || 'Unknown error');
+      if (typeof error === 'object' && error !== null && 'response' in error && (error as { response?: { data?: { detail?: string } } }).response?.data?.detail) {
+        throw new Error((error as { response: { data: { detail: string } } }).response.data.detail);
+      }
+      if (error instanceof Error) {
+        throw new Error(error.message);
+      }
+      throw new Error('Unknown error');
     }
   }, []);
 

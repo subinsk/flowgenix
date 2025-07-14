@@ -30,15 +30,31 @@ interface ChatState {
   sendMessageAsync: (sessionId: string, content: string, role?: 'user' | 'assistant') => Promise<void>;
 }
 
+// API response type for ChatMessage
+interface ApiChatMessage {
+  id: string;
+  content: string;
+  role: 'user' | 'assistant';
+  timestamp: string | number | Date;
+  workflow_id: string;
+  session_id: string;
+}
+
 // Utility to convert API ChatMessage to local Message type
-function toMessage(msg: any): ChatMessage {
+function toMessage(msg: ApiChatMessage | ChatMessage): ChatMessage {
+  // If already a ChatMessage, return as is
+  if ('workflowId' in msg && 'sessionId' in msg) {
+    return msg as ChatMessage;
+  }
+  // Otherwise, convert from API format
+  const apiMsg = msg as ApiChatMessage;
   return {
-    id: msg.id,
-    content: msg.content,
-    role: msg.role,
-    timestamp: new Date(msg.timestamp),
-    workflowId: msg.workflow_id,
-    sessionId: msg.session_id,
+    id: apiMsg.id,
+    content: apiMsg.content,
+    role: apiMsg.role,
+    timestamp: new Date(apiMsg.timestamp),
+    workflowId: apiMsg.workflow_id,
+    sessionId: apiMsg.session_id,
   };
 }
 
@@ -194,7 +210,7 @@ export const useChatStore = create<ChatState>()(
                 id: s.id,
                 workflowId: s.workflow_id,
                 title: s.title,
-                messages: (s.messages || []).map(toMessage),
+                messages: ((s.messages || []) as (ApiChatMessage | ChatMessage)[]).map(toMessage),
                 createdAt: new Date(s.created_at),
               })),
             });
@@ -211,17 +227,17 @@ export const useChatStore = create<ChatState>()(
                 id: session.id,
                 workflowId: session.workflow_id,
                 title: session.title,
-                messages: (session.messages || []).map(toMessage),
+                messages: ((session.messages || []) as (ApiChatMessage | ChatMessage)[]).map(toMessage),
                 createdAt: new Date(session.created_at),
               }],
               currentSession: {
                 id: session.id,
                 workflowId: session.workflow_id,
                 title: session.title,
-                messages: (session.messages || []).map(toMessage),
+                messages: ((session.messages || []) as (ApiChatMessage | ChatMessage)[]).map(toMessage),
                 createdAt: new Date(session.created_at),
               },  
-              messages: (session.messages || []).map(toMessage),         
+              messages: ((session.messages || []) as (ApiChatMessage | ChatMessage)[]).map(toMessage),         
             }));
           } finally {
             set({ isLoading: false });
@@ -231,9 +247,7 @@ export const useChatStore = create<ChatState>()(
           set({ isLoading: true });
           try {
             const messages = await chatService.getMessages(sessionId);
-            set({ messages: messages.map(
-              (msg) => toMessage(msg)
-            ) });
+            set({ messages: (messages as (ApiChatMessage | ChatMessage)[]).map(toMessage) });
           } finally {
             set({ isLoading: false });
           }
@@ -242,7 +256,7 @@ export const useChatStore = create<ChatState>()(
           set({ isTyping: true });
           try {
             const message = await chatService.sendMessage(sessionId, content, role);
-            set((state) => ({ messages: [...state.messages, toMessage(message)] }));
+            set((state) => ({ messages: [...state.messages, toMessage(message as ApiChatMessage | ChatMessage)] }));
           } finally {
             set({ isTyping: false });
           }

@@ -3,10 +3,8 @@
 import React, { useCallback, useMemo } from 'react';
 import {
   ReactFlow,
-  MiniMap,
   Controls,
   Background,
-  Connection,
   Edge,
   Node,
   BackgroundVariant,
@@ -127,6 +125,3 @@ export default function WorkflowCanvas({
     </div>
   );
 }
-
-const initialNodes: Node[] = [];
-const initialEdges: Edge[] = [];

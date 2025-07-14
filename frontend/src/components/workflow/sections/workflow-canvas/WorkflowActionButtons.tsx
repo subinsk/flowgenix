@@ -3,8 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui';
-import { Play, MessageCircle } from 'lucide-react';
-import {Icon as Iconify} from '@iconify/react'
+import { Icon as Iconify } from '@iconify/react'
 
 interface WorkflowActionButtonsProps {
   isBuilding: boolean;
@@ -35,7 +34,7 @@ export default function WorkflowActionButtons({
             className=""
           />
         ) : (
-        <Iconify icon="ph:play-fill" style={{width: '32px', height: '32px'}} />
+          <Iconify icon="ph:play-fill" style={{ width: '32px', height: '32px' }} />
         )}
         {hasUnsavedChanges && !isBuilding && (
           <span className="absolute top-0 left-0 w-4 h-4 bg-orange-500 rounded-full animate-pulse"></span>
@@ -45,10 +44,10 @@ export default function WorkflowActionButtons({
         size="sm"
         variant="default"
         onClick={onChat}
-        disabled={false} 
+        disabled={false}
         className="w-14 h-14 rounded-full relative bg-[#2563EB] hover:bg-[#2563EB]/80"
       >
-        <Iconify icon="heroicons-solid:chat" style={{width: '32px', height: '32px'}} />
+        <Iconify icon="heroicons-solid:chat" style={{ width: '32px', height: '32px' }} />
       </Button>
     </div>
   );

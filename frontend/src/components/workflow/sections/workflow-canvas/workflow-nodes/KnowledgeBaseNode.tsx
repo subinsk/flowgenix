@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { NodeWrapper } from "@/components";
-import { BookOpen, Eye, EyeOff, UploadCloud, X, Download, CheckCircle, AlertCircle } from "lucide-react";
+import { BookOpen, Eye, EyeOff, X, CheckCircle, AlertCircle } from "lucide-react";
 import { documentService } from "@/services/documentService";
 import { useParams } from "next/navigation";
 import { CustomHandle } from "./CustomHandle";
@@ -8,26 +8,45 @@ import { Position } from "@xyflow/react";
 import { Icon as Iconify } from "@iconify/react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
 
-export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
-  // Aggregate all errors for this node type (knowledgeBase) for this node
+interface UploadedDocument {
+  id: string;
+  filename: string;
+  file_size?: number;
+}
+
+interface KnowledgeBaseNodeData {
+  validationErrors?: Array<{ nodeId: string; nodeType: string; error: string; field?: string }>;
+  fileList?: File[];
+  file?: FileList | null;
+  uploadedDocuments?: UploadedDocument[];
+  onUpdate?: (id: string, update: { data: KnowledgeBaseNodeData }) => void;
+  clearValidationError?: (id: string, nodeType: string, field: string) => void;
+  onSettings?: () => void;
+  onDelete?: () => void;
+  embeddingModel?: string;
+  apiKey?: string;
+  config?: Record<string, unknown>;
+  inputTypes?: string[];
+}
+
+export const KnowledgeBaseNode = ({ id, data, selected }: { id: string; data: KnowledgeBaseNodeData; selected: boolean }) => {
   const nodeTypeErrors = (data?.validationErrors || [])
-    .filter((err: { nodeId: string; nodeType: string; error: string }) =>
+    .filter((err) =>
       err.nodeId === id && (err.nodeType === 'knowledgeBase')
     );
-  // File input errors
-  const fileInputErrors = nodeTypeErrors.filter((err: { error: string }) => err.error.toLowerCase().includes('file'));
-  // API key errors
-  const apiKeyErrors = nodeTypeErrors.filter((err: { error: string }) => err.error.toLowerCase().includes('api key'));
+  const fileInputErrors = nodeTypeErrors.filter((err) => err.error.toLowerCase().includes('file'));
+  const apiKeyErrors = nodeTypeErrors.filter((err) => err.error.toLowerCase().includes('api key'));
+  
   const [showApiKey, setShowApiKey] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const params = useParams();
   const workflowId = params?.id as string;
 
-  const hasQueryInput = data?.inputTypes?.includes('query') || (data?.hasInput && data?.inputType === 'query');
-  const fileList = Array.isArray(data?.fileList) ? data.fileList : [];
-  const uploadedDocuments = Array.isArray(data?.uploadedDocuments) ? data.uploadedDocuments : [];
+  const fileList: File[] = Array.isArray(data?.fileList) ? data.fileList : [];
+  const uploadedDocuments: UploadedDocument[] = Array.isArray(data?.uploadedDocuments) ? data.uploadedDocuments : [];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -35,7 +54,6 @@ export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
     if (files && files.length > 0 && typeof data?.clearValidationError === 'function') {
       data.clearValidationError(id, 'knowledgeBase', 'file');
     }
-    // Trigger file upload with embedding model and API key
     if (files && files.length > 0) {
       handleFileUpload(Array.from(files));
     }
@@ -47,7 +65,6 @@ export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
 
     if (!apiKey) {
       console.warn('No API key provided for embedding model');
-      // You could show a toast notification here
       return;
     }
 
@@ -61,36 +78,30 @@ export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
     try {
       const { workflowService } = await import('@/services/workflowService');
       const result = await workflowService.uploadDocuments(workflowId, files, embeddingModel, apiKey);
-      console.log('Files uploaded successfully:', result);
 
-      // Update node data with uploaded documents
       data?.onUpdate?.(id, {
         data: {
           ...data,
-          uploadedDocuments: [...uploadedDocuments, ...result.files],
-          file: null, // Clear the file input
-          fileList: [] // Clear the file list
+          uploadedDocuments: [...uploadedDocuments, ...(result.files as unknown as UploadedDocument[])],
+          file: null,
+          fileList: []
         }
       });
 
-      // Clear file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
 
-      // Clear validation errors for successful upload
       if (typeof data?.clearValidationError === 'function') {
         data.clearValidationError(id, 'knowledgeBase', 'file');
       }
 
       setUploadStatus('success');
-      // Reset status after 3 seconds
       setTimeout(() => setUploadStatus('idle'), 3000);
 
     } catch (error) {
       console.error('File upload failed:', error);
       setUploadStatus('error');
-      // Reset status after 5 seconds
       setTimeout(() => setUploadStatus('idle'), 5000);
     } finally {
       setIsUploading(false);
@@ -107,11 +118,9 @@ export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
 
   const handleDownloadDocument = async (documentId: string, filename: string) => {
     try {
-      // Try to download via the document service first (for database tracked files)
       await documentService.downloadDocument(documentId, filename);
     } catch (error) {
       console.error('Download failed:', error);
-      // Show a brief error status
       setUploadStatus('error');
       setTimeout(() => setUploadStatus('idle'), 3000);
     }
@@ -119,7 +128,7 @@ export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
 
   const handleRemoveDocument = (e: React.MouseEvent, documentId: string) => {
     e.stopPropagation();
-    const updatedDocuments = uploadedDocuments.filter((doc: any) => doc.id !== documentId);
+    const updatedDocuments = uploadedDocuments.filter((doc: UploadedDocument) => doc.id !== documentId);
     data?.onUpdate?.(id, {
       data: {
         ...data,
@@ -135,7 +144,7 @@ export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
       onSettings={data?.onSettings}
       onDelete={data?.onDelete}
       id={id}
-      validationErrors={data?.validationErrors || []}
+      validationErrors={Array.isArray(data?.validationErrors) ? data.validationErrors.map(e => e.error) : []}
     >
       <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
         <BookOpen className={`w-5 h-5 text-[#444444]/80`} />
@@ -169,7 +178,6 @@ export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
                   }
                 }}
                 disabled={isUploading}
-                aria-invalid={fileInputErrors.length > 0}
                 aria-describedby={fileInputErrors.length > 0 ? `${id}-kb-file-error` : undefined}
               >
                 {isUploading ? 'Uploading...' : 'Upload File'}
@@ -210,14 +218,13 @@ export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
             )}
           </div>
 
-          {/* Display uploaded documents */}
           {uploadedDocuments.length > 0 && (
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">
                 Uploaded Documents ({uploadedDocuments.length})
               </label>
               <div className="space-y-1 max-h-32 overflow-y-auto">
-                {uploadedDocuments.map((doc: any, index: number) => (
+                {uploadedDocuments.map((doc, index) => (
                   <div key={doc.id || index} className="flex items-center gap-2 bg-muted px-2 py-1 rounded border border-border">
                     <span className="text-xs text-foreground flex-1 truncate" title={doc.filename}>
                       {doc.filename}

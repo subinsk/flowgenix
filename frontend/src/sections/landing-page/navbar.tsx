@@ -1,13 +1,10 @@
 import { Button } from '@/components/ui';
 import { ANIMATIONS } from '@/constants';
 import { motion } from 'framer-motion';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { Logo } from '@/components/common/logo';
-
 
 function DropdownLink({ name, children }: { name: string; children?: Array<{ name: string; link: string }> }) {
     // states
@@ -36,10 +33,6 @@ function DropdownLink({ name, children }: { name: string; children?: Array<{ nam
 }
 
 export function Navbar() {
-    // hooks
-    const router = useRouter();
-    const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-
     const navbarLinks = [
         {
             name: "Products",
@@ -90,7 +83,9 @@ export function Navbar() {
                 <div className="flex items-center">
                     {
                         navbarLinks.map((link, index) => (
-                            <DropdownLink key={index} name={link.name} children={link.children} />
+                            <DropdownLink key={index} name={link.name}>
+                                {link.children}
+                            </DropdownLink>
                         ))
                     }
                     <Button

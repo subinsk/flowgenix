@@ -1,23 +1,48 @@
+
 import { useState } from "react";
 import { NodeWrapper } from "@/components";
-import { Brain, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import type { NodeFieldError } from "@/hooks";
 import { Icon as Iconify } from "@iconify/react";
 import { CustomHandle } from "./CustomHandle";
 import { Position } from "@xyflow/react";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue, Separator, Switch } from "@/components/ui";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Separator, Switch } from "@/components/ui";
 import { getDefaultPrompt } from "@/constants/promptTemplates";
 
-export const LLMEngineNode = ({ id, data, selected }: any) => {
-  // Use the new error structure: { nodeId, nodeType, field, error }
+type TokenType =
+  | { type: "editable"; content: string; key: string }
+  | { type: "token"; content: string; key: string; color: string };
+
+interface LLMEngineNodeData {
+  validationErrors?: NodeFieldError[];
+  inputTypes?: string[];
+  hasInput?: boolean;
+  inputType?: string;
+  webSearchEnabled?: boolean;
+  temperature?: number;
+  model?: string;
+  apiKey?: string;
+  serpApiKey?: string;
+  systemPrompt?: string;
+  config?: Record<string, unknown>;
+  onUpdate?: (id: string, update: { data: LLMEngineNodeData }) => void;
+  clearValidationError?: (id: string, nodeType: string, field: string) => void;
+  onSettings?: () => void;
+  onDelete?: () => void;
+}
+
+interface LLMEngineNodeProps {
+  id: string;
+  data: LLMEngineNodeData;
+  selected: boolean;
+}
+
+export const LLMEngineNode = ({ id, data, selected }: LLMEngineNodeProps) => {
   const nodeErrors: NodeFieldError[] = (data?.validationErrors || []).filter(
     (err: NodeFieldError) => err.nodeId === id && err.nodeType === "llmEngine"
   );
-  // Model errors (field-specific)
   const modelErrors = nodeErrors.filter((err) => err.field === "model");
-  // API key errors (field-specific)
   const apiKeyErrors = nodeErrors.filter((err) => err.field === "apiKey");
-  // Web search API key errors
   const serpKeyErrors = nodeErrors.filter((err) => err.field === "serpApiKey");
 
   const [showApiKey, setShowApiKey] = useState(false);
@@ -26,14 +51,13 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
   const hasContext = data?.inputTypes?.includes("context") || (data?.hasInput && data?.inputType === "context");
   const hasQuery = data?.inputTypes?.includes("query") || (data?.hasInput && data?.inputType === "query");
 
-  // Controlled values from data with fallbacks
   const webSearchEnabled = data?.webSearchEnabled || false;
   const temperature = data?.temperature !== undefined ? data.temperature : 0.7;
 
-  const renderTokenizedSystemPrompt = () => {
+  const renderTokenizedSystemPrompt = (): TokenType[] => {
     const defaultPrompt = getDefaultPrompt();
     const basePrompt = data?.systemPrompt || defaultPrompt;
-    const tokens = [];
+    const tokens: TokenType[] = [];
 
     tokens.push({
       type: "editable",
@@ -62,7 +86,6 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
     return tokens;
   };
 
-  // Model name mapping for backend/UI sync
   const MODEL_NAME_MAP: Record<string, string> = {
     'GPT-4': 'gpt-4',
     'GPT-4 Turbo': 'gpt-4-turbo',
@@ -82,7 +105,7 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
       onSettings={data?.onSettings}
       onDelete={data?.onDelete}
       id={id}
-      validationErrors={data?.validationErrors || []}
+      validationErrors={Array.isArray(data?.validationErrors) ? data.validationErrors.map(e => e.error) : []}
     >
       <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
         <Iconify icon="lucide:sparkles" className="w-5 h-5 text-[#444444]/80" />
@@ -96,18 +119,18 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Model</label>
             <Select
-              value={MODEL_NAME_MAP_REVERSE[data?.model] || data?.model || ''}
+              value={data?.model && MODEL_NAME_MAP_REVERSE[data.model] ? MODEL_NAME_MAP_REVERSE[data.model] : (data?.model || '')}
               onValueChange={(uiValue) => {
                 const backendValue = MODEL_NAME_MAP[uiValue] || uiValue;
-                data?.onUpdate?.(id, { 
-                  data: { 
-                    ...data, 
+                data?.onUpdate?.(id, {
+                  data: {
+                    ...data,
                     model: backendValue,
-                    config: { 
-                      ...data?.config, 
-                      model: backendValue 
-                    } 
-                  } 
+                    config: {
+                      ...data?.config,
+                      model: backendValue
+                    }
+                  }
                 });
                 if (uiValue && typeof data?.clearValidationError === 'function') {
                   data.clearValidationError(id, 'llmEngine', 'model');
@@ -149,15 +172,15 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
                 placeholder="Enter API key..."
                 value={data?.apiKey || ''}
                 onChange={e => {
-                  data?.onUpdate?.(id, { 
-                    data: { 
-                      ...data, 
+                  data?.onUpdate?.(id, {
+                    data: {
+                      ...data,
                       apiKey: e.target.value,
-                      config: { 
-                        ...data?.config, 
-                        apiKey: e.target.value 
-                      } 
-                    } 
+                      config: {
+                        ...data?.config,
+                        apiKey: e.target.value
+                      }
+                    }
                   });
                   if (e.target.value && typeof data?.clearValidationError === 'function') {
                     data.clearValidationError(id, 'llmEngine', 'apiKey');
@@ -193,15 +216,15 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
             <label className="block text-xs font-medium text-muted-foreground mb-1">Temperature</label>
             <Select value={temperature.toString()} onValueChange={(value) => {
               const newTemp = parseFloat(value);
-              data?.onUpdate?.(id, { 
-                data: { 
-                  ...data, 
+              data?.onUpdate?.(id, {
+                data: {
+                  ...data,
                   temperature: newTemp,
-                  config: { 
-                    ...data?.config, 
-                    temperature: newTemp 
-                  } 
-                } 
+                  config: {
+                    ...data?.config,
+                    temperature: newTemp
+                  }
+                }
               });
             }}>
               <SelectTrigger className="w-full">
@@ -231,15 +254,15 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
                         placeholder="Enter system prompt..."
                         value={token.content}
                         onChange={(e) => {
-                          data?.onUpdate?.(id, { 
-                            data: { 
-                              ...data, 
+                          data?.onUpdate?.(id, {
+                            data: {
+                              ...data,
                               systemPrompt: e.target.value,
-                              config: { 
-                                ...data?.config, 
-                                systemPrompt: e.target.value 
-                              } 
-                            } 
+                              config: {
+                                ...data?.config,
+                                systemPrompt: e.target.value
+                              }
+                            }
                           });
                         }}
                         onMouseDown={(e) => e.stopPropagation()}
@@ -318,56 +341,55 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
-            
+
             {webSearchEnabled && (
               <>
-              <Separator />
-              <div className="mt-5">
-                <label className="block text-xs font-medium text-muted-foreground mb-1">SERP API Key</label>
-                <div className="relative">
-                  <input
-                    type={showSerpKey ? "text" : "password"}
-                    className={`w-full p-2 pr-8 text-sm bg-input border border-border rounded focus:ring-2 focus:ring-primary focus:border-transparent nodrag ${serpKeyErrors.length > 0 ? "border-destructive ring-1 ring-destructive" : "border-border"}`}
-                    placeholder="Enter SERP API key..."
-                    value={data?.serpApiKey || ''}
-                    onChange={e => {
-                      data?.onUpdate?.(id, { data: { ...data, serpApiKey: e.target.value } });
-                      if (e.target.value && typeof data?.clearValidationError === 'function') {
-                        data.clearValidationError(id, 'llmEngine', 'serpApiKey');
-                      }
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onFocus={(e) => e.stopPropagation()}
-                    onClick={(e) => e.stopPropagation()}
-                    aria-invalid={serpKeyErrors.length > 0}
-                    aria-describedby={serpKeyErrors.length > 0 ? `${id}-serp-key-error` : undefined}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground nodrag"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowSerpKey(!showSerpKey);
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    {showSerpKey ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                </div>
-                {serpKeyErrors.length > 0 && (
-                  <div id={`${id}-serp-key-error`} className="text-xs text-destructive mt-1">
-                    {serpKeyErrors.map((err, idx) => (
-                      <div key={idx}>{err.error}</div>
-                    ))}
+                <Separator />
+                <div className="mt-5">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">SERP API Key</label>
+                  <div className="relative">
+                    <input
+                      type={showSerpKey ? "text" : "password"}
+                      className={`w-full p-2 pr-8 text-sm bg-input border border-border rounded focus:ring-2 focus:ring-primary focus:border-transparent nodrag ${serpKeyErrors.length > 0 ? "border-destructive ring-1 ring-destructive" : "border-border"}`}
+                      placeholder="Enter SERP API key..."
+                      value={data?.serpApiKey || ''}
+                      onChange={e => {
+                        data?.onUpdate?.(id, { data: { ...data, serpApiKey: e.target.value } });
+                        if (e.target.value && typeof data?.clearValidationError === 'function') {
+                          data.clearValidationError(id, 'llmEngine', 'serpApiKey');
+                        }
+                      }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onFocus={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-invalid={serpKeyErrors.length > 0}
+                      aria-describedby={serpKeyErrors.length > 0 ? `${id}-serp-key-error` : undefined}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground nodrag"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowSerpKey(!showSerpKey);
+                      }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      {showSerpKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
                   </div>
-                )}
+                  {serpKeyErrors.length > 0 && (
+                    <div id={`${id}-serp-key-error`} className="text-xs text-destructive mt-1">
+                      {serpKeyErrors.map((err, idx) => (
+                        <div key={idx}>{err.error}</div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
           </div>
         </div>
         <div className="relative w-full h-4 mt-8">
-          {/* Output handle (right) */}
           <div className="absolute -right-5">
             <CustomHandle
               type="source"

@@ -1,8 +1,8 @@
-import { WorkflowStatus } from '@/types';
+import { WorkflowNode as TypesWorkflowNode, WorkflowEdge as TypesWorkflowEdge, Workflow as TypesWorkflow } from '@/types/workflow';
 import api from './api';
 
 // Helper function to check if there's a path between nodes
-const hasPathBetweenNodes = (sourceId: string, targetId: string, edges: WorkflowEdge[]): boolean => {
+const hasPathBetweenNodes = (sourceId: string, targetId: string, edges: TypesWorkflowEdge[]): boolean => {
   if (sourceId === targetId) {
     return true;
   }
@@ -42,38 +42,16 @@ const hasPathBetweenNodes = (sourceId: string, targetId: string, edges: Workflow
   return dfs(sourceId);
 };
 
-export interface WorkflowNode {
-  id: string;
-  type: string;
-  position: { x: number; y: number };
-  data: Record<string, any>;
-}
-
-export interface WorkflowEdge {
-  id: string;
-  source: string;
-  target: string;
-  sourceHandle?: string;
-  targetHandle?: string;
-}
-
-export interface Workflow {
-  id: string;
-  name: string;
-  description?: string;
-  nodes: WorkflowNode[];
-  edges: WorkflowEdge[];
-  created_at: string;
-  updated_at: string;
-  status?: WorkflowStatus;
-  user_id: string;
-}
+// Use types from types/workflow.ts
+export type WorkflowNode = TypesWorkflowNode;
+export type WorkflowEdge = TypesWorkflowEdge;  
+export type Workflow = TypesWorkflow;
 
 export interface WorkflowExecution {
   id: string;
   workflow_id: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
-  result?: any;
+  result?: Record<string, unknown>;
   error_message?: string;
   input_query: string;
   started_at: string;
@@ -89,7 +67,7 @@ export interface WorkflowBuildResponse {
   success: boolean;
   message: string;
   errors?: string[];
-  execution_plan?: Record<string, any>;
+  execution_plan?: Record<string, unknown>;
 }
 
 export interface WorkflowExecuteRequest {
@@ -99,7 +77,7 @@ export interface WorkflowExecuteRequest {
 export interface WorkflowExecuteResponse {
   execution_id: string;
   status: string;
-  result?: Record<string, any>;
+  result?: Record<string, unknown>;
   message: string;
 }
 
@@ -159,7 +137,7 @@ export const workflowService = {
     files: File[],
     embeddingModel: string,
     apiKey: string
-  ): Promise<{ message: string; files: any[] }> => {
+  ): Promise<{ message: string; files: Record<string, unknown>[] }> => {
     const formData = new FormData();
     files.forEach(file => {
       formData.append('files', file);
@@ -174,7 +152,7 @@ export const workflowService = {
     return response.data;
   },
 
-  getWorkflowDocuments: async (workflowId: string): Promise<any[]> => {
+  getWorkflowDocuments: async (workflowId: string): Promise<Record<string, unknown>[]> => {
     const response = await api.get(`/workflows/${workflowId}/documents`);
     return response.data;
   },

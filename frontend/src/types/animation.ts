@@ -1,16 +1,16 @@
 export interface AnimationVariants {
-  initial: Record<string, any>;
-  animate: Record<string, any>;
-  exit?: Record<string, any>;
-  transition?: Record<string, any>;
+  initial: Record<string, string | number | boolean>;
+  animate: Record<string, string | number | boolean>;
+  exit?: Record<string, string | number | boolean>;
+  transition?: Record<string, string | number | boolean>;
 }
 
 export interface AnimationProps {
   variants?: AnimationVariants;
-  initial?: string | Record<string, any>;
-  animate?: string | Record<string, any>;
-  exit?: string | Record<string, any>;
-  transition?: Record<string, any>;
+  initial?: string | Record<string, string | number | boolean>;
+  animate?: string | Record<string, string | number | boolean>;
+  exit?: string | Record<string, string | number | boolean>;
+  transition?: Record<string, string | number | boolean>;
   delay?: number;
   duration?: number;
 }

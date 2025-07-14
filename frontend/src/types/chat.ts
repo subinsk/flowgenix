@@ -5,7 +5,7 @@ export interface ChatMessage {
   timestamp: Date;
   workflowId?: string;
   sessionId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 export interface ChatSession {

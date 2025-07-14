@@ -3,10 +3,8 @@
 import React, { useCallback, useMemo } from 'react';
 import {
   ReactFlow,
-  MiniMap,
   Controls,
   Background,
-  Connection,
   Edge,
   Node,
   BackgroundVariant,
@@ -64,17 +62,14 @@ export default function WorkflowCanvas({
     nodeTypes,
     onNodeClick,
     onInit,
-    // Accessibility & UX
     nodesFocusable: true,
     edgesFocusable: true,
     autoPanOnConnect: true,
     autoPanOnNodeDrag: true,
-    // Performance
     onlyRenderVisibleElements: true,
-    // Viewport & interaction
     attributionPosition: 'bottom-left',
     panOnScroll: true,
-    panOnDrag: [1, 2], // middle/right mouse
+    panOnDrag: [1, 2],
     selectionOnDrag: true,
     selectNodesOnDrag: false,
     nodesDraggable: true,
@@ -82,15 +77,11 @@ export default function WorkflowCanvas({
     elementsSelectable: true,
     minZoom: 0.25,
     maxZoom: 2,
-    // Keyboard
     deleteKeyCode: 'Delete',
     multiSelectionKeyCode: 'Shift',
     selectionKeyCode: 'Shift',
     panActivationKeyCode: 'Space',
     zoomActivationKeyCode: ['Meta', 'Control'],
-    // Optionally enable grid snapping:
-    // snapToGrid: true,
-    // snapGrid: [16, 16],
   }), [
     nodes,
     edges,
@@ -99,10 +90,7 @@ export default function WorkflowCanvas({
     onConnect,
     nodeTypes,
     onNodeClick,
-    onInit,
-    onDrop,
-    onDragOver,
-    onDragLeave
+    onInit
   ]);
 
   return (

@@ -1,15 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button, Separator } from '@/components/ui';
 import { workflowService } from '@/services';
-import { FilePlus } from 'lucide-react';
 import { useNotifications } from '@/hooks';
-import { STATUS_MAP } from '@/constants';
 import { CreateWorkflowModal, DashboardHeader } from '@/sections';
-import { DashboardWorkflow, WorkflowStatus } from '@/types';
+import { DashboardWorkflow } from '@/types';
 import { PlusIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 
 
@@ -21,16 +19,11 @@ export default function DashboardPage() {
   // states
   const [workflows, setWorkflows] = useState<DashboardWorkflow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery] = useState<string>('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false)
 
-  // effects
-  useEffect(() => {
-    loadWorkflows();
-  }, [router]);
-
   // functions
-  const loadWorkflows = async () => {
+  const loadWorkflows = useCallback(async () => {
     try {
       const data = await workflowService.getWorkflows();
       const formattedWorkflows: DashboardWorkflow[] = data.map(w => ({
@@ -44,11 +37,17 @@ export default function DashboardPage() {
 
       setWorkflows(formattedWorkflows);
     } catch (error) {
+      console.log(error);
       showError('Load Error', 'Failed to load workflows');
     } finally {
       setLoading(false);
     }
-  };
+  }, [showError]);
+
+  // effects
+  useEffect(() => {
+    loadWorkflows();
+  }, [loadWorkflows]);
 
   const filteredWorkflows = workflows.filter(workflow =>
     workflow.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

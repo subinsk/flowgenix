@@ -78,6 +78,7 @@ class ApiKeyService {
       const response = await this.getApiKeys();
       return response.api_keys.some(key => key.key_name === keyName);
     } catch (error) {
+      console.error('Error checking API key existence:', error);
       return false;
     }
   }
@@ -88,6 +89,7 @@ class ApiKeyService {
       const response = await this.getApiKeyValue(keyName);
       return response.api_key;
     } catch (error) {
+      console.error('Error fetching stored API key:', error);
       return null;
     }
   }

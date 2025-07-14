@@ -26,9 +26,33 @@ export const documentAPI = {
   },
 };
 
-// Workflow API
+// Types for workflow API
+export interface WorkflowSaveData {
+  name: string;
+  description?: string;
+  nodes: Array<{
+    id: string;
+    type: string;
+    position: { x: number; y: number };
+    data: Record<string, unknown>;
+  }>;
+  edges: Array<{
+    id: string;
+    source: string;
+    target: string;
+    sourceHandle?: string;
+    targetHandle?: string;
+    data?: Record<string, unknown>;
+  }>;
+}
+
+export interface WorkflowExecuteData {
+  workflow_id: string;
+  query: string;
+}
+
 export const workflowAPI = {
-  save: async (workflow: any) => {
+  save: async (workflow: WorkflowSaveData) => {
     const response = await apiClient.post('/workflows', workflow);
     return response.data;
   },
@@ -38,7 +62,7 @@ export const workflowAPI = {
     return response.data;
   },
   
-  execute: async (workflowData: any) => {
+  execute: async (workflowData: WorkflowExecuteData) => {
     const response = await apiClient.post('/workflows/execute', workflowData);
     return response.data;
   },
@@ -61,8 +85,12 @@ export const chatAPI = {
 };
 
 // LLM API
+export interface LLMGenerateContext {
+  [key: string]: unknown;
+}
+
 export const llmAPI = {
-  generate: async (prompt: string, context?: any) => {
+  generate: async (prompt: string, context?: LLMGenerateContext) => {
     const response = await apiClient.post('/llm/generate', { 
       prompt, 
       context 

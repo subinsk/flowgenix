@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { ReactFlowProvider, useNodesState, useEdgesState, addEdge, Connection, Edge, Node, NodeTypes } from '@xyflow/react';
 import { ChevronRight, User, BookOpen, Brain, Monitor } from 'lucide-react';
+import type { EdgeChange } from '@xyflow/react';
 
 import { Button } from '@/components/ui';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
+import { Dialog, DialogContent } from '@/components/ui';
 import { workflowService } from '@/services';
 import { ChatInterface } from '@/components';
 import { UserQueryNode, KnowledgeBaseNode, LLMEngineNode, OutputNode } from '@/components/workflow';
@@ -15,15 +16,30 @@ import WorkflowCanvas from '@/components/workflow/sections/workflow-canvas/Workf
 import NodeConfigurationPanel from '@/components/NodeConfigurationPanel';
 import { useChatStore } from '@/store/chat';
 import { useWorkflowStore } from '@/store/workflow';
-import { chatService } from '@/services/chatService';
 
 import WorkflowHeader from '@/components/workflow/sections/WorkflowHeader';
 import ComponentSidebar from '@/components/workflow/sections/ComponentSidebar';
 import WorkflowActionButtons from '@/components/workflow/sections/workflow-canvas/WorkflowActionButtons';
 import CanvasEmptyState from '@/components/workflow/sections/workflow-canvas/CanvasEmptyState';
 import { useNotifications, useWorkflowService, useWorkflowValidation } from '@/hooks';
-import { DashboardWorkflow, WorkflowStatus } from '@/types';
 import { CreateWorkflowModal } from '@/sections';
+import type { NodeChange } from '@xyflow/react';
+import { UIWorkflow, WorkflowStatus } from '@/types';
+
+type NodeUpdate = {
+  data?: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
+type AllowedWorkflowStatus = WorkflowStatus;
+
+interface SelectedWorkflow {
+  id: string;
+  name: string;
+  description?: string;
+  status?: AllowedWorkflowStatus;
+  [key: string]: unknown;
+}
 
 const nodeTypes: NodeTypes = {
   userQuery: UserQueryNode,
@@ -39,21 +55,8 @@ const componentTypes = [
   { id: 'output', name: 'Output', icon: <Monitor className="w-5 h-5" /> }
 ];
 
-interface ChatMessage {
-  id: string;
-  content: string;
-  role: 'user' | 'assistant';
-  timestamp: Date;
-}
-
 const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
-
-// Type guard for allowed workflow statuses
-const allowedStatuses = ['draft', 'running', 'paused', 'ready'] as const;
-type AllowedWorkflowStatus = typeof allowedStatuses[number];
-const isAllowedWorkflowStatus = (status: any): status is AllowedWorkflowStatus =>
-  allowedStatuses.includes(status);
 
 export default function EditStackPage() {
   const router = useRouter();
@@ -62,15 +65,23 @@ export default function EditStackPage() {
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
+  type ReactFlowInstanceType = {
+    screenToFlowPosition?: (pos: { x: number; y: number }) => { x: number; y: number };
+    setViewport?: (viewport: { x: number; y: number; zoom: number }, options?: { duration?: number }) => void;
+  } | null;
+  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstanceType>(null);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
 
-  const [workflow, setWorkflow] = useState({
+  const [workflow, setWorkflow] = useState<UIWorkflow>({
     id: params?.id as string,
     name: 'Untitled Workflow',
     description: 'No description',
-    status: 'draft' as AllowedWorkflowStatus,
-    lastModified: new Date().toISOString()
+    status: 'draft',
+    updatedAt: new Date(),
+    createdAt: new Date(),
+    userId: '',
+    nodes: [],
+    edges: [],
   });
 
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
@@ -84,16 +95,15 @@ export default function EditStackPage() {
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const [isHistoryAction, setIsHistoryAction] = useState<boolean>(false);
 
-  const { isWorkflowValid, validationErrors, validateWorkflow, triggerValidation, clearValidationError, hasValidated } = useWorkflowValidation(nodes, edges);
-  const { isBuilding, saveWorkflow, buildWorkflow, executeWorkflow } = useWorkflowService(workflow.id);
+  const { isWorkflowValid, validationErrors, triggerValidation, clearValidationError, hasValidated } = useWorkflowValidation(nodes, edges);
+  const { isBuilding, saveWorkflow, buildWorkflow, executeWorkflow } = useWorkflowService();
   const { hasUnsavedChanges, setLastSaveTime, setHasUnsavedChanges, setNodes: setWorkflowNodes, setEdges: setWorkflowEdges, loadNodes: loadWorkflowNodes, loadEdges: loadWorkflowEdges } = useWorkflowStore();
 
   const [isEditWorkflow, setIsEditWorkflow] = useState<boolean>(false);
-  const [selectedWorkflow, setSelectedWorkflow] = useState<any | null>(null);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<SelectedWorkflow | null>(null);
 
   const {
     currentSession,
-    sessions,
     messages: storeMessages,
     isLoading: chatStoreLoading,
     isTyping,
@@ -104,18 +114,14 @@ export default function EditStackPage() {
     loadMessages,
   } = useChatStore();
 
-  // Auto-show validation errors when validation is triggered and there are errors
   useEffect(() => {
-    console.log('Validation state changed - hasValidated:', hasValidated, 'validationErrors:', validationErrors.length);
     if (hasValidated && validationErrors.length > 0) {
-      console.log('Auto-showing validation errors:', validationErrors);
       setShowValidationErrors(true);
-      setSidebarCollapsed(false); // Ensure sidebar is visible to show errors
+      setSidebarCollapsed(false);
     }
   }, [hasValidated, validationErrors]);
 
   const saveToHistory = useCallback((currentNodes: Node[], currentEdges: Edge[]) => {
-    // Don't save history during undo/redo operations
     if (isHistoryAction) return;
 
     const newEntry = {
@@ -135,7 +141,6 @@ export default function EditStackPage() {
       return newHistory;
     });
 
-    // Update index to point to the new entry
     setHistoryIndex(prevIndex => {
       const truncatedLength = prevIndex + 1;
       const newLength = truncatedLength + 1;
@@ -184,10 +189,6 @@ export default function EditStackPage() {
   const canRedo = historyIndex < history.length - 1;
 
   useEffect(() => {
-    loadWorkflow();
-  }, [params?.id]);
-
-  useEffect(() => {
     if (history.length === 0) {
       const initialState = {
         nodes: JSON.parse(JSON.stringify(nodes)),
@@ -198,7 +199,7 @@ export default function EditStackPage() {
     }
   }, [nodes, edges, history.length]);
 
- 
+
   useEffect(() => {
     if (!isHistoryAction && history.length > 0) {
       setWorkflowNodes(nodes);
@@ -228,19 +229,25 @@ export default function EditStackPage() {
     return () => clearTimeout(timer);
   }, [nodes, edges, history, historyIndex, saveToHistory, isHistoryAction, setWorkflowNodes, setWorkflowEdges]);
 
-  const loadWorkflow = async () => {
+  const loadWorkflow = useCallback(async () => {
     try {
       const data = await workflowService.getWorkflow(params?.id as string);
-      setWorkflow({
+      // Convert service response to UI workflow
+      const uiWorkflow: UIWorkflow = {
         id: data.id,
         name: data.name,
         description: data.description || 'No description',
-        status: isAllowedWorkflowStatus(data.status) ? data.status : 'draft',
-        lastModified: data.updated_at
-      });
+        status: data.status || 'draft',
+        createdAt: new Date(data.created_at),
+        updatedAt: new Date(data.updated_at),
+        userId: data.user_id,
+        nodes: data.nodes || [],
+        edges: data.edges || [],
+      };
+      setWorkflow(uiWorkflow);
 
       // Load workflow documents
-      let workflowDocuments: any[] = [];
+      let workflowDocuments: Record<string, unknown>[] = [];
       try {
         workflowDocuments = await workflowService.getWorkflowDocuments(params?.id as string);
       } catch (error) {
@@ -249,7 +256,7 @@ export default function EditStackPage() {
 
       if (data.nodes?.length > 0) {
         // Update KnowledgeBase nodes with uploaded documents
-        const updatedNodes = data.nodes.map((node: any) => {
+        const updatedNodes = data.nodes.map((node) => {
           if (node.data?.type === 'knowledgeBase') {
             return {
               ...node,
@@ -276,7 +283,11 @@ export default function EditStackPage() {
       console.error('Error loading workflow:', error);
       showError('Load Error', 'Failed to load workflow');
     }
-  };
+  }, [params?.id, setNodes, setEdges, loadWorkflowNodes, loadWorkflowEdges, setLastSaveTime, setHasUnsavedChanges, showError]);
+
+  useEffect(() => {
+    loadWorkflow();
+  }, [params?.id, loadWorkflow]);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -364,7 +375,6 @@ export default function EditStackPage() {
     event.dataTransfer.effectAllowed = 'move';
   };
 
-  // Model name mapping for backend compatibility
   const MODEL_NAME_MAP: Record<string, string> = {
     'GPT-4': 'gpt-4',
     'GPT-4 Turbo': 'gpt-4-turbo',
@@ -423,10 +433,11 @@ export default function EditStackPage() {
 
       if (validationResult) {
         showSuccess('Build Successful', 'Your workflow has been built successfully!');
-        setLastSaveTime(new Date()); 
+        setLastSaveTime(new Date());
         setHasUnsavedChanges(false);
       }
     } catch (error) {
+      console.error('Build error:', error);
       showError('Build Failed', 'Failed to build workflow. Please try again.');
     }
   };
@@ -434,10 +445,9 @@ export default function EditStackPage() {
   const handleSave = async () => {
     await saveWorkflow(workflow, nodes, edges, setWorkflow);
     setLastSaveTime(new Date());
-    setHasUnsavedChanges(false); // Reset unsaved changes
+    setHasUnsavedChanges(false);
   };
 
-  // On chat open, load or create session for this workflow
   useEffect(() => {
     if (isChatOpen) {
       (async () => {
@@ -451,12 +461,11 @@ export default function EditStackPage() {
           setCurrentSession(session);
         }
         if (session) {
-          // Load messages using store method
           await loadMessages(session.id);
         }
       })();
     }
-  }, [isChatOpen, workflow.id, loadSessions, createSessionAsync, setCurrentSession, loadMessages]);
+  }, [isChatOpen, workflow.id, workflow.name, loadSessions, createSessionAsync, setCurrentSession, loadMessages]);
 
   const handleChatMessage = async (message: string) => {
     if (!currentSession) return;
@@ -467,8 +476,8 @@ export default function EditStackPage() {
 
       try {
         const result = await executeWorkflow(workflow.id, message);
-
-        await sendMessageAsync(currentSession.id, result, 'assistant');
+        const resultMessage = typeof result === 'string' ? result : JSON.stringify(result);
+        await sendMessageAsync(currentSession.id, resultMessage, 'assistant');
 
       } catch (workflowError) {
         const errorMessage = `Sorry, there was an error processing your request: ${workflowError instanceof Error ? workflowError.message : 'Unknown error'}`;
@@ -513,7 +522,8 @@ export default function EditStackPage() {
     }
   }, [nodes]);
 
-  const handleUpdateNode = useCallback((nodeId: string, updates: any) => {
+
+  const handleUpdateNode = useCallback((nodeId: string, updates: NodeUpdate) => {
     setNodes((nds) => nds.map(node => {
       if (node.id !== nodeId) return node;
       return {
@@ -527,10 +537,8 @@ export default function EditStackPage() {
   }, [setNodes]);
 
   const enhancedNodes = useMemo(() => {
-    console.log('enhancedNodes recomputing - hasValidated:', hasValidated, 'validationErrors:', validationErrors.length);
     return nodes.map(node => {
       const nodeErrors = hasValidated ? validationErrors.filter(e => e.nodeId === node.id) : [];
-      console.log(`Node ${node.id} errors:`, nodeErrors);
       return {
         ...node,
         data: {
@@ -545,24 +553,17 @@ export default function EditStackPage() {
     });
   }, [nodes, validationErrors, hasValidated, handleDeleteNode, handleNodeSettings, handleUpdateNode, clearValidationError]);
 
-  // Custom edge change handler to update node UI when edges are disconnected
   const handleEdgesChange = useCallback(
-    (changes: any[]) => {
-      // Apply the changes to edges first
+    (changes: EdgeChange[]) => {
       onEdgesChange(changes);
-
-      // Check for edge removals and update affected nodes
       const removedEdges = changes.filter(change => change.type === 'remove');
-
       if (removedEdges.length > 0) {
         setNodes((nds) => nds.map(node => {
-          // Check if this node was affected by edge removal
           const wasConnected = removedEdges.some(change =>
             edges.find(edge => edge.id === change.id && edge.target === node.id)
           );
 
           if (wasConnected) {
-            // Recalculate inputTypes based on remaining edges
             const remainingIncomingEdges = edges.filter(edge =>
               edge.target === node.id &&
               !removedEdges.some(change => change.id === edge.id)
@@ -594,36 +595,25 @@ export default function EditStackPage() {
     [onEdgesChange, edges, setNodes, showInfo]
   );
 
-  // Custom nodes change handler to work with enhanced nodes
-  const handleNodesChange = useCallback((changes: any[]) => {
-    // Strip enhancement data before applying changes to base nodes
+
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
     const strippedChanges = changes.map(change => {
       if (change.type === 'position' || change.type === 'dimensions') {
         return change;
       }
-      // For other changes, ensure we're working with clean node data
       return change;
     });
     onNodesChange(strippedChanges);
   }, [onNodesChange]);
 
   useEffect(() => {
-    if (nodes.length === 1 && reactFlowInstance) {
+    if (nodes.length === 1 && reactFlowInstance && typeof reactFlowInstance.setViewport === 'function') {
       reactFlowInstance.setViewport({ x: 0, y: 0, zoom: 0.8 }, { duration: 400 });
     }
   }, [nodes.length, reactFlowInstance]);
 
-  // Debug: Log when validation errors change
-  useEffect(() => {
-    console.log('Validation errors changed:', validationErrors);
-    console.log('hasValidated:', hasValidated);
-    console.log('showValidationErrors:', showValidationErrors);
-  }, [validationErrors, hasValidated, showValidationErrors]);
-
-  // Auto-show validation errors when they exist and validation was triggered
   useEffect(() => {
     if (hasValidated && validationErrors.length > 0) {
-      console.log('Auto-showing validation errors because hasValidated is true and errors exist');
       setShowValidationErrors(true);
       setSidebarCollapsed(false);
     }
@@ -646,7 +636,7 @@ export default function EditStackPage() {
         onToggleValidationErrors={() => {
           setShowValidationErrors(!showValidationErrors);
           if (!showValidationErrors && validationErrors.length > 0) {
-            setSidebarCollapsed(false); // Expand sidebar when showing errors
+            setSidebarCollapsed(false);
           }
         }}
       />
@@ -710,12 +700,12 @@ export default function EditStackPage() {
 
       <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
         <DialogContent className="max-w-4xl h-[80vh] p-0 gap-0 flex flex-col">
-            <ChatInterface
-              messages={storeMessages}
-              onSendMessage={handleChatMessage}
-              isLoading={chatStoreLoading || isTyping}
-              chatLoading={chatLoading}
-            />
+          <ChatInterface
+            messages={storeMessages}
+            onSendMessage={handleChatMessage}
+            isLoading={chatStoreLoading || isTyping}
+            chatLoading={chatLoading}
+          />
         </DialogContent>
       </Dialog>
 

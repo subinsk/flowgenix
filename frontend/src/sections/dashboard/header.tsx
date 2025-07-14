@@ -1,5 +1,5 @@
 import { Logo } from '@/components/common/logo';
-import { Button, DropdownMenuTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui';
+import { DropdownMenuTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui';
 import { authService } from '@/services';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';

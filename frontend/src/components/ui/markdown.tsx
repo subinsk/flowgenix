@@ -50,8 +50,9 @@ export function Markdown({ children, className }: MarkdownProps) {
           ),
           
           // Code
-          code: ({ className, ...props }: any) => {
-            const isInline = !props.children?.includes('\n');
+          code: ({ className, children, ...props }: React.HTMLAttributes<HTMLElement> & { children?: React.ReactNode }) => {
+            const codeString = typeof children === 'string' ? children : Array.isArray(children) ? children.join('') : '';
+            const isInline = !codeString.includes('\n');
             if (isInline) {
               return (
                 <code 
@@ -60,7 +61,7 @@ export function Markdown({ children, className }: MarkdownProps) {
                     className
                   )} 
                   {...props} 
-                />
+                >{children}</code>
               );
             }
             return (
@@ -70,7 +71,7 @@ export function Markdown({ children, className }: MarkdownProps) {
                   className
                 )} 
                 {...props} 
-              />
+              >{children}</code>
             );
           },
           pre: ({ className, ...props }) => (

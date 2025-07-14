@@ -20,5 +20,5 @@ export interface FormFieldProps {
   placeholder?: string;
   required?: boolean;
   options?: Array<{ label: string; value: string }>;
-  validation?: Record<string, any>;
+  validation?: Record<string, string | number | boolean | RegExp>;
 }

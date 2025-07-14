@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Target } from 'lucide-react';
 import { Icon as Iconify } from '@iconify/react';
 
 interface CanvasEmptyStateProps {

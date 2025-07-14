@@ -220,21 +220,25 @@ export const STATUS_MAP: Record<string, { label: string; color: string }> = {
   },
 };
 
-import { FileInput, BookOpen, Brain, Sparkles } from 'lucide-react';
+import { FileInput, BookOpen, Sparkles, LucideProps } from 'lucide-react';
 
-export const NODE_TYPE_MAP: Record<string, { id: string; label: string; icon: React.ComponentType<any>; inputs: Array<any>; outputs: Array<any> }> = {
+type NodeIO = { id: string };
+
+export const NODE_TYPE_MAP: Record<string, {
+  id: string;
+  label: string;
+  icon: React.ComponentType<LucideProps>;
+  inputs: NodeIO[];
+  outputs: NodeIO[];
+}> = {
   userQuery: {
     id: 'userQuery',
     label: 'User Query',
     icon: FileInput,
     inputs: [],
     outputs: [
-      {
-        id: 'knowledgeBase',
-      },
-      {
-        id: 'llmEngine',
-      }
+      { id: 'knowledgeBase' },
+      { id: 'llmEngine' }
     ]
   },
   llmEngine: {
@@ -242,43 +246,31 @@ export const NODE_TYPE_MAP: Record<string, { id: string; label: string; icon: Re
     label: 'LLM Engine',
     icon: Sparkles,
     inputs: [
-      {
-        id: 'userQuery',
-      },
-      {
-        id: 'knowledgeBase',
-      },
+      { id: 'userQuery' },
+      { id: 'knowledgeBase' }
     ],
     outputs: [
-      {
-        id: 'output',
-      },
-    ],
+      { id: 'output' }
+    ]
   },
   knowledgeBase: {
     id: 'knowledgeBase',
     label: 'Knowledge Base',
     icon: BookOpen,
     inputs: [
-      {
-        id: 'userQuery',
-      },
+      { id: 'userQuery' }
     ],
     outputs: [
-      {
-        id: 'llmEngine',
-      },
-    ],
+      { id: 'llmEngine' }
+    ]
   },
   output: {
     id: 'output',
     label: 'Output',
     icon: FileInput,
     inputs: [
-      {
-        id: 'llmEngine',
-      },
+      { id: 'llmEngine' }
     ],
-    outputs: [],
+    outputs: []
   },
 };

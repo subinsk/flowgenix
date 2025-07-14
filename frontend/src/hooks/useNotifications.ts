@@ -1,14 +1,6 @@
 import { NOTIFICATION_TYPES } from '@/constants';
 import { useUIStore } from '@/store';
-import { useState, useCallback } from 'react';
-
-interface Notification {
-  id: string;
-  type: 'success' | 'error' | 'info' | 'warning';
-  title: string;
-  message: string;
-  duration?: number;
-}
+import { useCallback } from 'react';
 
 export const useNotifications = () => {
   const { addNotification, removeNotification, clearNotifications, notifications } = useUIStore();
@@ -27,7 +19,7 @@ export const useNotifications = () => {
       type: NOTIFICATION_TYPES.ERROR,
       title,
       message,
-      duration: duration || 8000, // Errors stay longer
+      duration: duration || 8000,
     });
   }, [addNotification]);
 

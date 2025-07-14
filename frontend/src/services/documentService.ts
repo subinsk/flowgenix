@@ -48,7 +48,7 @@ export const documentService = {
     await api.delete(`/documents/${documentId}`);
   },
 
-  searchDocuments: async (query: string): Promise<any[]> => {
+  searchDocuments: async (query: string): Promise<Record<string, unknown>[]> => {
     const response = await api.post('/documents/search', { query });
     return response.data;
   },
