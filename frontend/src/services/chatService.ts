@@ -1,11 +1,19 @@
 import api from './api';
 
+export interface SearchSource {
+  title: string;
+  url: string;
+  description: string;
+  snippet?: string;
+}
+
 export interface ChatMessage {
   id: string;
   session_id: string;
   content: string;
   role: 'user' | 'assistant';
   timestamp: string;
+  searchSources?: SearchSource[];
 }
 
 export interface ChatSession {

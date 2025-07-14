@@ -1,3 +1,10 @@
+export interface SearchSource {
+  title: string;
+  url: string;
+  description: string;
+  snippet?: string;
+}
+
 export interface ChatMessage {
   id: string;
   content: string;
@@ -6,6 +13,7 @@ export interface ChatMessage {
   workflowId?: string;
   sessionId?: string;
   metadata?: Record<string, string | number | boolean>;
+  searchSources?: SearchSource[];
 }
 
 export interface ChatSession {

@@ -476,8 +476,33 @@ export default function EditStackPage() {
 
       try {
         const result = await executeWorkflow(workflow.id, message);
-        const resultMessage = typeof result === 'string' ? result : JSON.stringify(result);
-        await sendMessageAsync(currentSession.id, resultMessage, 'assistant');
+        console.log('Workflow execution result:', result);
+        
+        // Extract search sources if they exist
+        let searchSources = undefined;
+        let resultMessage = '';
+        
+        if (typeof result === 'object' && result !== null) {
+          console.log('Result is object, checking for search_sources:', 'search_sources' in result);
+          // If result has search_sources, extract them
+          if ('search_sources' in result && Array.isArray(result.search_sources)) {
+            searchSources = result.search_sources;
+            console.log('🔍 Found search sources:', searchSources);
+          }
+          
+          // Get the main result content
+          if ('result' in result) {
+            resultMessage = typeof result.result === 'string' ? result.result : JSON.stringify(result.result);
+          } else {
+            resultMessage = JSON.stringify(result);
+          }
+        } else {
+          resultMessage = typeof result === 'string' ? result : JSON.stringify(result);
+        }
+        
+        console.log('Final search sources to send:', searchSources);
+        
+        await sendMessageAsync(currentSession.id, resultMessage, 'assistant', searchSources);
 
       } catch (workflowError) {
         const errorMessage = `Sorry, there was an error processing your request: ${workflowError instanceof Error ? workflowError.message : 'Unknown error'}`;

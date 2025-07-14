@@ -133,7 +133,8 @@ export function useWorkflowService() {
   const executeWorkflow = useCallback(async (workflowId: string, query: string) => {
     try {
       const response = await workflowService.executeWorkflow(workflowId, { query });
-      return response.result?.result || 'Workflow execution completed successfully';
+      // Return the full result object to preserve search sources
+      return response.result || 'Workflow execution completed successfully';
     } catch (error: unknown) {
       console.error('Error executing workflow:', error);
       if (typeof error === 'object' && error !== null && 'response' in error && (error as { response?: { data?: { detail?: string } } }).response?.data?.detail) {

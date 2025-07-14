@@ -1,13 +1,51 @@
 import { ChatInterfaceProps } from '@/types';
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, MessageSquare } from 'lucide-react';
+import { RefreshCw, MessageSquare, ExternalLink, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Markdown } from '@/components/ui/markdown';
 import { Logo } from '@/components/common/logo';
 import { DialogHeader, DialogTitle, Separator, Textarea } from '@/components/ui';
 import { Icon as Iconify } from '@iconify/react';
 import Image from 'next/image';
+import { SearchSource } from '@/types/chat';
+
+// Component to display search sources
+const SearchSources = ({ sources }: { sources: SearchSource[] }) => {
+  if (!sources || sources.length === 0) return null;
+
+  return (
+    <div className="mt-3 p-3 bg-blue-50/50 border border-blue-200 rounded-lg">
+      <div className="flex items-center gap-2 mb-2">
+        <Search className="w-4 h-4 text-blue-600" />
+        <span className="text-sm font-medium text-blue-800">Web Search Sources</span>
+      </div>
+      <div className="space-y-2">
+        {sources.map((source, index) => (
+          <div key={index} className="flex items-start gap-2 text-sm">
+            <ExternalLink className="w-3 h-3 text-blue-500 mt-0.5 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <a
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline font-medium line-clamp-1"
+                title={source.title}
+              >
+                {source.title}
+              </a>
+              {source.description && (
+                <p className="text-gray-600 text-xs mt-0.5 line-clamp-2">
+                  {source.description}
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function ChatInterface({ messages = [], onSendMessage, isLoading = false, chatLoading }: ChatInterfaceProps) {
   const [inputValue, setInputValue] = useState<string>('');
@@ -95,6 +133,9 @@ export function ChatInterface({ messages = [], onSendMessage, isLoading = false,
                           )}
                         </div>
                       </div>
+                      {message.role === 'assistant' && message.searchSources && message.searchSources.length > 0 && (
+                        <SearchSources sources={message.searchSources} />
+                      )}
                     </div>
                   </div>
 

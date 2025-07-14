@@ -410,7 +410,7 @@ class WorkflowService:
                 print(f"DEBUG LLM Engine: Final API key available: {bool(llm_api_key)}")
                 print(f"DEBUG LLM Engine: Model for AI service call: {model}")
                 
-                # Web search integration
+                # Enhanced Web search integration
                 webSearchEnabled = node_config.get("webSearchEnabled", False)
                 
                 if webSearchEnabled:
@@ -418,17 +418,20 @@ class WorkflowService:
                     search_api_key = node_config.get("serpApiKey") or stored_api_keys.get("serpapi")
                     
                     if search_api_key:
-                        print(f"DEBUG: Performing search with query: '{current_output}' using {search_provider}")
-                        
-                        search_results = await self.search_service.search(
+                        # Enhanced web search: Identify items from documents and fetch prices
+                        search_results, enhanced_sources = await self._perform_enhanced_web_search(
                             query=current_output,
-                            provider=search_provider,
-                            num_results=5,
-                            api_key=search_api_key
+                            context=context,
+                            search_provider=search_provider,
+                            search_api_key=search_api_key
                         )
                         
                         if search_results:
                             context["search_results"] = search_results
+                            
+                            # Store enhanced sources for frontend display (max 2-3 sources)
+                            if enhanced_sources:
+                                context["search_sources"] = enhanced_sources[:3]  # Limit to 3 sources
                             
                             # Use enhanced formatting from search service
                             search_context = self.search_service.format_search_results_for_llm(
@@ -438,7 +441,7 @@ class WorkflowService:
                             )
                             
                             system_prompt += f"\n\n{search_context}"
-                            print(f"DEBUG: Added {len(search_results)} search results to context")
+                            print(f"DEBUG: Added {len(search_results)} search results to context with {len(enhanced_sources) if enhanced_sources else 0} enhanced sources")
                         else:
                             print(f"DEBUG: No search results found for query: '{current_output}'")
                     else:
@@ -448,7 +451,36 @@ class WorkflowService:
                 if "knowledge_context" in context and context["knowledge_context"]:
                     context_content = "\n\n".join(context["knowledge_context"])
                     print(f"DEBUG: Adding document context to LLM, length: {len(context_content)}")
-                    system_prompt += f"\n\n=== DOCUMENT CONTENT ===\nThe following content is from documents that the user has uploaded and wants to discuss. This is the actual content from their documents:\n\n{context_content}\n\n=== END DOCUMENT CONTENT ===\n\nBased on the document content above, please provide accurate and detailed responses to the user's questions. Always reference specific parts of the document when answering."
+                    
+                    # Enhanced prompt when we have both documents and web search
+                    if webSearchEnabled and "search_results" in context:
+                        system_prompt += f"""
+
+=== DOCUMENT CONTENT ===
+The following content is from documents that the user has uploaded:
+
+{context_content}
+
+=== END DOCUMENT CONTENT ===
+
+🔍 **ENHANCED ANALYSIS INSTRUCTIONS:**
+You have both document content and current web search results available. When responding:
+
+1. **Identify items/products** mentioned in the documents that the user is asking about
+2. **Provide current pricing** and purchase information from the web search results
+3. **Compare options** if multiple products or vendors are found
+4. **Reference specific sources** for price and availability information
+5. **Combine document insights** with current market information
+
+Focus on being helpful with actionable information including:
+- Current prices and where to buy
+- Product specifications from documents
+- Comparison between options
+- Recommendations based on both sources
+
+Always cite your sources and distinguish between document information and current web data."""
+                    else:
+                        system_prompt += f"\n\n=== DOCUMENT CONTENT ===\nThe following content is from documents that the user has uploaded and wants to discuss. This is the actual content from their documents:\n\n{context_content}\n\n=== END DOCUMENT CONTENT ===\n\nBased on the document content above, please provide accurate and detailed responses to the user's questions. Always reference specific parts of the document when answering."
                 else:
                     print(f"DEBUG: No document context available for LLM")
                 
@@ -500,7 +532,182 @@ class WorkflowService:
             "execution_id": execution_id,
             "completed_at": datetime.utcnow().isoformat()
         }
+        
+        # Add search sources to result if available
+        if "search_sources" in context:
+            result["search_sources"] = context["search_sources"]
+            
         return convert_uuids(result)
+
+    async def _perform_enhanced_web_search(self, query: str, context: Dict[str, Any], search_provider: str, search_api_key: str) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        Enhanced web search that identifies items from documents and fetches targeted information
+        Returns: (search_results, enhanced_sources)
+        """
+        enhanced_sources = []
+        
+        # Step 1: Check if we have document context to identify items
+        document_context = context.get("knowledge_context", [])
+        identified_items = []
+        
+        if document_context:
+            # Analyze documents to identify products, items, or entities
+            identified_items = await self._identify_items_from_documents(document_context, query)
+            print(f"DEBUG Enhanced Search: Identified {len(identified_items)} items from documents")
+        
+        # Step 2: Determine search strategy
+        if identified_items:
+            # Enhanced search for identified items (focus on prices and details)
+            search_results = []
+            
+            for item in identified_items[:3]:  # Limit to top 3 items
+                item_query = f"{item} price buy where to purchase 2024"
+                print(f"DEBUG Enhanced Search: Searching for item: '{item_query}'")
+                
+                item_results = await self.search_service.search(
+                    query=item_query,
+                    provider=search_provider,
+                    num_results=3,
+                    api_key=search_api_key
+                )
+                
+                if item_results:
+                    # Filter and enhance results for this item
+                    enhanced_item_results = await self._enhance_search_results_for_item(item, item_results)
+                    search_results.extend(enhanced_item_results)
+                    
+                    # Create enhanced sources for frontend display
+                    for result in enhanced_item_results[:2]:  # Max 2 sources per item
+                        enhanced_sources.append({
+                            "title": result.get("title", ""),
+                            "url": result.get("url", ""),
+                            "description": f"Price information for {item}",
+                            "snippet": result.get("snippet", "")
+                        })
+        else:
+            # Fallback to standard search if no items identified
+            print(f"DEBUG Enhanced Search: No items identified, performing standard search")
+            search_results = await self.search_service.search(
+                query=query,
+                provider=search_provider,
+                num_results=5,
+                api_key=search_api_key
+            )
+            
+            # Create sources from standard results
+            for result in search_results[:3]:  # Max 3 sources
+                enhanced_sources.append({
+                    "title": result.get("title", ""),
+                    "url": result.get("url", ""),
+                    "description": result.get("snippet", "")[:100] + "..." if len(result.get("snippet", "")) > 100 else result.get("snippet", ""),
+                    "snippet": result.get("snippet", "")
+                })
+        
+        return search_results, enhanced_sources
+
+    async def _identify_items_from_documents(self, document_context: List[str], query: str) -> List[str]:
+        """
+        Identify products, items, or entities from document context that might need price information
+        """
+        import re
+        
+        # Combine all document content
+        full_text = " ".join(document_context).lower()
+        query_lower = query.lower()
+        
+        # Patterns to identify potential items/products
+        item_patterns = [
+            # Product names with models/versions
+            r'\b[A-Z][a-zA-Z]*\s+[A-Z0-9][a-zA-Z0-9]*\b',
+            # Brand + product patterns
+            r'\b(?:iPhone|iPad|MacBook|Samsung|Dell|HP|Lenovo|Microsoft|Google|Amazon|Apple)\s+[a-zA-Z0-9\s]+?\b',
+            # Generic product categories
+            r'\b(?:laptop|computer|phone|tablet|monitor|keyboard|mouse|headphones|camera|printer)\b',
+            # Software/services
+            r'\b(?:software|app|application|service|tool|platform|subscription)\s+[a-zA-Z]+\b'
+        ]
+        
+        identified_items = set()
+        
+        # Extract potential items using patterns
+        for pattern in item_patterns:
+            matches = re.findall(pattern, full_text, re.IGNORECASE)
+            for match in matches:
+                if isinstance(match, str) and len(match.strip()) > 2:
+                    identified_items.add(match.strip())
+        
+        # Also look for items mentioned in the query
+        query_words = query_lower.split()
+        for word in query_words:
+            if len(word) > 3:  # Skip short words
+                # Check if this word appears in document context
+                if word in full_text:
+                    # Look for surrounding context to build item name
+                    for doc in document_context:
+                        if word in doc.lower():
+                            # Extract a few words around the match
+                            words = doc.split()
+                            for i, doc_word in enumerate(words):
+                                if word in doc_word.lower():
+                                    # Take up to 3 words around the match
+                                    start = max(0, i-1)
+                                    end = min(len(words), i+3)
+                                    potential_item = " ".join(words[start:end])
+                                    if len(potential_item.strip()) > 3:
+                                        identified_items.add(potential_item.strip())
+        
+        # Filter and clean identified items
+        cleaned_items = []
+        for item in identified_items:
+            # Skip very common words
+            if item.lower() not in ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']:
+                cleaned_items.append(item)
+        
+        return list(cleaned_items)[:5]  # Return top 5 items
+
+    async def _enhance_search_results_for_item(self, item: str, search_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Enhance search results for a specific item by prioritizing price and purchase information
+        """
+        enhanced_results = []
+        
+        # Keywords that indicate price/purchase information
+        price_keywords = ['price', 'cost', 'buy', 'purchase', 'sale', 'deal', 'offer', '$', 'usd', 'cheap', 'expensive']
+        vendor_keywords = ['amazon', 'ebay', 'walmart', 'target', 'bestbuy', 'newegg', 'apple', 'microsoft']
+        
+        for result in search_results:
+            title = result.get("title", "").lower()
+            snippet = result.get("snippet", "").lower()
+            url = result.get("url", "").lower()
+            
+            # Calculate relevance score for this item
+            relevance_score = 0
+            
+            # Check for item name in title/snippet
+            if item.lower() in title:
+                relevance_score += 3
+            if item.lower() in snippet:
+                relevance_score += 2
+            
+            # Check for price indicators
+            price_score = sum(1 for keyword in price_keywords if keyword in title or keyword in snippet)
+            relevance_score += price_score * 2
+            
+            # Check for known vendors
+            vendor_score = sum(1 for keyword in vendor_keywords if keyword in url or keyword in title)
+            relevance_score += vendor_score
+            
+            # Add enhanced metadata
+            enhanced_result = result.copy()
+            enhanced_result["relevance_score"] = relevance_score
+            enhanced_result["item_name"] = item
+            enhanced_result["enhanced_for"] = "price_search"
+            
+            enhanced_results.append(enhanced_result)
+        
+        # Sort by relevance score and return top results
+        enhanced_results.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
+        return enhanced_results
 
     def _enhance_system_prompt_for_search(self, base_prompt: str, search_analysis: Dict[str, Any], has_search_results: bool) -> str:
         """Enhance system prompt based on search analysis"""

@@ -27,7 +27,7 @@ interface ChatState {
   loadSessions: () => Promise<void>;
   createSessionAsync: (workflowId: string, title?: string) => Promise<void>;
   loadMessages: (sessionId: string) => Promise<void>;
-  sendMessageAsync: (sessionId: string, content: string, role?: 'user' | 'assistant') => Promise<void>;
+  sendMessageAsync: (sessionId: string, content: string, role?: 'user' | 'assistant', searchSources?: any[]) => Promise<void>;
 }
 
 // API response type for ChatMessage
@@ -252,11 +252,17 @@ export const useChatStore = create<ChatState>()(
             set({ isLoading: false });
           }
         },
-        sendMessageAsync: async (sessionId, content, role = 'user') => {
+        sendMessageAsync: async (sessionId, content, role = 'user', searchSources) => {
           set({ isTyping: true });
           try {
+            console.log('🔍 Chat store - sending message with search sources:', searchSources);
             const message = await chatService.sendMessage(sessionId, content, role);
-            set((state) => ({ messages: [...state.messages, toMessage(message as ApiChatMessage | ChatMessage)] }));
+            const messageWithSources = {
+              ...toMessage(message as ApiChatMessage | ChatMessage),
+              searchSources: searchSources || undefined
+            };
+            console.log('🔍 Chat store - final message with sources:', messageWithSources);
+            set((state) => ({ messages: [...state.messages, messageWithSources] }));
           } finally {
             set({ isTyping: false });
           }
