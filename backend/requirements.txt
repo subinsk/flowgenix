@@ -1,25 +1,25 @@
 # FastAPI and web server
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+fastapi==0.115.13
+uvicorn[standard]==0.34.3
 websockets==12.0
 python-multipart==0.0.6
 
 # Database
 psycopg2-binary==2.9.9
 sqlalchemy==2.0.23
-alembic==1.12.1
+alembic==1.16.2
 
 # Environment and configuration
 python-dotenv==1.0.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic==2.11.7
+pydantic-settings==2.10.1
 
 # Vector database - Updated to latest working version
 chromadb==1.0.13
 numpy==2.0.2
 
 # HTTP client
-httpx==0.25.2
+httpx==0.28.1
 aiofiles==23.2.1
 
 # Document processing

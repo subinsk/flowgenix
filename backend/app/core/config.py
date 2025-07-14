@@ -40,5 +40,6 @@ class Settings(BaseSettings):
     class Config:
         env_file = str(ROOT_DIR / ".env")
         case_sensitive = False
+        extra = "ignore"  # Ignore extra fields in .env
 
 settings = Settings()
