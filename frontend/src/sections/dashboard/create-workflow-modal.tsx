@@ -132,6 +132,7 @@ export function CreateWorkflowModal({ isModalOpen, setIsModalOpen, setWorkflows,
                 workflowDescription: selectedWorkflow.description || '',
             });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mode, selectedWorkflow]);
 
     return (
