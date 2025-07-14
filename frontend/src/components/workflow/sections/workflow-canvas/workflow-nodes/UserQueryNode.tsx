@@ -44,7 +44,7 @@ export const UserQueryNode = ({ id, data, selected }: any) => {
               type="source"
               position={Position.Right}
               label="Query"
-              tooltipContent={
+              tooltipComponents={
                 ["llmEngine", "knowledgeBase"]
               }
             />

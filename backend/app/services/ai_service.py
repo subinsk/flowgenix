@@ -18,11 +18,15 @@ class AIService:
     ) -> Dict[str, Any]:
         """Generate AI response using Gemini or OpenAI API"""
         
+        print(f"DEBUG AI Service: model={model}, api_key={'***' if api_key else 'None'}")
+        
         # Handle OpenAI models
         if model.startswith("gpt-"):
+            print("DEBUG: Routing to OpenAI")
             return await self._generate_openai_response(messages, model, temperature, max_tokens, api_key=api_key)
         
         # Handle Gemini models
+        print("DEBUG: Routing to Gemini")
         return await self._generate_gemini_response(messages, model, temperature, max_tokens, api_key=api_key)
 
     async def _generate_openai_response(
@@ -77,7 +81,9 @@ class AIService:
     ) -> Dict[str, Any]:
         """Generate response using Gemini API"""
         key = api_key
+        print(f"DEBUG Gemini: key={'***' if key else 'None'}, model={model}")
         if not key:
+            print("DEBUG: No Gemini API key provided")
             return {"content": "Gemini API key not configured", "model": model}
 
         # Convert messages to Gemini format

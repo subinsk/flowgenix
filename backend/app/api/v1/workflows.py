@@ -28,13 +28,17 @@ async def create_workflow(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new workflow"""
+    # Convert Pydantic models to dictionaries for JSON storage
+    nodes_dict = [node.dict() for node in workflow.nodes]
+    edges_dict = [edge.dict() for edge in workflow.edges]
+    
     db_workflow = Workflow(
         id=str(uuid.uuid4()),
         name=workflow.name,
         description=workflow.description,
         user_id=current_user.id,
-        nodes=workflow.nodes,
-        edges=workflow.edges,
+        nodes=nodes_dict,
+        edges=edges_dict,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -112,6 +116,14 @@ async def update_workflow(
     current_user: User = Depends(get_current_user)
 ):
     """Update a workflow"""
+    print(f"DEBUG: Updating workflow {workflow_id}")
+    print(f"DEBUG: Update data keys: {list(workflow_update.dict(exclude_unset=True).keys())}")
+    if hasattr(workflow_update, 'nodes') and workflow_update.nodes:
+        print(f"DEBUG: Number of nodes to update: {len(workflow_update.nodes)}")
+        for i, node in enumerate(workflow_update.nodes[:2]):  # Print first 2 nodes
+            node_dict = node.dict() if hasattr(node, 'dict') else node
+            print(f"DEBUG: Node {i} data: {node_dict.get('data', {})}")
+    
     workflow = db.query(Workflow).filter(
         Workflow.id == workflow_id,
         Workflow.user_id == current_user.id
@@ -228,6 +240,8 @@ async def execute_workflow(
     current_user: User = Depends(get_current_user)
 ):
     """Execute a workflow with user query"""
+    print(f"DEBUG: Executing workflow {workflow_id}")
+    
     workflow = db.query(Workflow).filter(
         Workflow.id == workflow_id,
         Workflow.user_id == current_user.id
@@ -235,6 +249,11 @@ async def execute_workflow(
     
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    print(f"DEBUG: Found workflow with {len(workflow.nodes)} nodes")
+    for i, node in enumerate(workflow.nodes[:2]):  # Print first 2 nodes  
+        print(f"DEBUG: DB Node {i}: type={node.get('type')}, data_keys={list(node.get('data', {}).keys())}")
+        print(f"DEBUG: DB Node {i} data: {node.get('data', {})}")
     
     if workflow.status != "ready":
         raise HTTPException(status_code=400, detail="Workflow must be in ready status before execution")
@@ -334,43 +353,25 @@ async def upload_documents(
     uploaded_files = []
     try:
         for file in files:
-            # Save file to disk
-            file_path = os.path.join(settings.upload_dir, f"{current_user.id}_{file.filename}")
-            async with aiofiles.open(file_path, 'wb') as f:
-                content = await file.read()
-                await f.write(content)
-            # Create DB record
-            document_data = DocumentCreate(
-                filename=file.filename,
-                content_type=file.content_type,
-                file_size=len(content),
-                file_path=file_path
-            )
-            db_document = Document(
-                filename=document_data.filename,
-                content_type=document_data.content_type,
-                file_size=document_data.file_size,
-                file_path=document_data.file_path,
-                user_id=current_user.id,
-                workflow_id=workflow_id  # Associate document with workflow
-            )
-            db.add(db_document)
-            db.commit()
-            db.refresh(db_document)
-            # Process document (extract text, generate embeddings)
-            await document_service._process_document(db_document, embedding_model or "text-embedding-ada-002", final_api_key)
+            # Reset file position to beginning
+            await file.seek(0)
+            
+            # Process document using the service (handles everything: saving, text extraction, embedding generation)
+            result = await document_service.process_document(file, workflow_id, str(current_user.id))
+            
             uploaded_files.append({
-                "id": str(db_document.id),
-                "filename": db_document.filename,
-                "content_type": db_document.content_type,
-                "file_size": db_document.file_size,
-                "file_path": db_document.file_path
+                "filename": file.filename,
+                "content_type": file.content_type,
+                "message": result.get("message", "Processed successfully"),
+                "doc_id": result.get("doc_id", "unknown")
             })
+            
         return {
             "message": f"Successfully uploaded {len(uploaded_files)} documents",
             "files": uploaded_files
         }
     except Exception as e:
+        print(f"Upload error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to upload documents: {str(e)}")
 
 

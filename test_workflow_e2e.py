@@ -95,7 +95,7 @@ class WorkflowE2ETest:
                             "model": "gpt-3.5-turbo",
                             "temperature": 0.7,
                             "maxTokens": 500,
-                            "systemPrompt": "You are a helpful AI assistant. Provide clear, informative responses."
+                            "systemPrompt": "You are an intelligent AI assistant designed to analyze documents and provide comprehensive, accurate responses. When provided with document content as context, treat it as the actual content from uploaded documents that the user wants to discuss. Always base your answers on the provided context when available, and clearly reference the document content in your responses."
                         }
                     }
                 },

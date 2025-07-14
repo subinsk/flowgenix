@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from fastapi import UploadFile
 import fitz  # PyMuPDF
 import chromadb
+from docx import Document as DocxDocument
 
 from app.models.document import Document
 from app.schemas.document import DocumentCreate
@@ -83,6 +84,8 @@ class DocumentService:
         elif file_path.endswith('.txt'):
             async with aiofiles.open(file_path, 'r', encoding='utf-8') as f:
                 return await f.read()
+        elif file_path.endswith('.docx'):
+            return self._extract_docx_text(file_path)
         else:
             return "Unsupported file type for text extraction"
 
@@ -97,6 +100,84 @@ class DocumentService:
             return text
         except Exception as e:
             return f"Error extracting PDF text: {str(e)}"
+
+    def _extract_docx_text(self, file_path: str) -> str:
+        """Extract text from DOCX using python-docx"""
+        try:
+            doc = DocxDocument(file_path)
+            text = ""
+            for paragraph in doc.paragraphs:
+                text += paragraph.text + "\n"
+            return text
+        except Exception as e:
+            return f"Error extracting DOCX text: {str(e)}"
+
+    async def _extract_pdf_text(self, content: bytes) -> str:
+        """Extract text from PDF content using PyMuPDF"""
+        try:
+            import tempfile
+            import io
+            
+            # Check if content is valid
+            if not content or len(content) == 0:
+                return "Error: PDF content is empty"
+                
+            # Try to open directly from bytes first
+            try:
+                doc = fitz.open(stream=content, filetype="pdf")
+                text = ""
+                for page in doc:
+                    text += page.get_text()
+                doc.close()
+                
+                if not text.strip():
+                    return "Error: PDF appears to be empty or contains no extractable text"
+                    
+                return text
+            except Exception as direct_error:
+                print(f"Direct PDF processing failed: {direct_error}")
+                
+                # Fallback: Use temporary file
+                with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_file:
+                    temp_file.write(content)
+                    temp_file.flush()
+                    
+                    doc = fitz.open(temp_file.name)
+                    text = ""
+                    for page in doc:
+                        text += page.get_text()
+                    doc.close()
+                    
+                    # Clean up temp file
+                    os.unlink(temp_file.name)
+                    
+                    if not text.strip():
+                        return "Error: PDF appears to be empty or contains no extractable text"
+                        
+                    return text
+                    
+        except Exception as e:
+            print(f"PDF extraction error: {str(e)}")
+            return f"Error extracting PDF text: {str(e)}"
+
+    async def _extract_docx_text(self, content: bytes) -> str:
+        """Extract text from DOCX content using python-docx"""
+        try:
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as temp_file:
+                temp_file.write(content)
+                temp_file.flush()
+                
+                doc = DocxDocument(temp_file.name)
+                text = ""
+                for paragraph in doc.paragraphs:
+                    text += paragraph.text + "\n"
+                
+                # Clean up temp file
+                os.unlink(temp_file.name)
+                return text
+        except Exception as e:
+            return f"Error extracting DOCX text: {str(e)}"
 
     async def _process_document(self, document: Document, embedding_model: str = "text-embedding-ada-002", api_key: str = None):
         """Process document: extract text and generate embeddings with selected model and key"""
@@ -235,47 +316,171 @@ class DocumentService:
             # Save and process document
             content = await file.read()
             
+            print(f"Processing document: {file.filename}, size: {len(content)} bytes, type: {file.content_type}")
+            
+            # Check if content is valid
+            if not content or len(content) == 0:
+                raise ValueError("Document content is empty")
+            
             # Extract text content
             text_content = ""
             if file.content_type == "application/pdf":
                 text_content = await self._extract_pdf_text(content)
+            elif file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                text_content = await self._extract_docx_text(content)
             elif file.content_type.startswith("text/"):
                 text_content = content.decode('utf-8')
             else:
                 raise ValueError(f"Unsupported file type: {file.content_type}")
             
+            print(f"Extracted text length: {len(text_content)}")
+            
+            if not text_content.strip():
+                raise ValueError("No text could be extracted from the document")
+            
+            # Save to database first
+            from app.models.document import Document
+            import os
+            from app.core.config import settings
+            import aiofiles
+            
+            # Save file to disk
+            file_path = os.path.join(settings.upload_dir, f"{user_id}_{file.filename}")
+            async with aiofiles.open(file_path, 'wb') as f:
+                await f.write(content)
+            
+            # Create DB record
+            db_document = Document(
+                filename=file.filename,
+                content_type=file.content_type,
+                file_size=len(content),
+                file_path=file_path,
+                user_id=user_id,
+                workflow_id=workflow_id,
+                processed=False
+            )
+            
+            if self.db:
+                self.db.add(db_document)
+                self.db.commit()
+                self.db.refresh(db_document)
+            
             # Generate embeddings
+            print(f"DEBUG: Generating embeddings for document: {file.filename}")
+            print(f"DEBUG: Text content length: {len(text_content)}")
             ai_service = AIService()
             embeddings = await ai_service.generate_embeddings(text_content)
+            print(f"DEBUG: Embeddings generated: {bool(embeddings)}")
+            if embeddings:
+                print(f"DEBUG: Embedding dimensions: {len(embeddings)}")
+            else:
+                print("WARNING: No embeddings generated - document will not be searchable")
+            
+            doc_id = f"{workflow_id}_{file.filename}_{hash(text_content)}"
             
             if embeddings:
-                # Store in ChromaDB
-                collection = self._get_or_create_collection()
-                doc_id = f"{workflow_id}_{file.filename}_{hash(text_content)}"
+                print(f"Generated embeddings, length: {len(embeddings)}")
                 
-                collection.add(
-                    documents=[text_content],
-                    embeddings=[embeddings],
-                    metadatas=[{
-                        "filename": file.filename,
-                        "workflow_id": workflow_id,
-                        "user_id": user_id,
-                        "content_type": file.content_type,
-                        "size": len(content)
-                    }],
-                    ids=[doc_id]
-                )
+                # Store in ChromaDB with error handling for dimension mismatch
+                try:
+                    collection = self._get_or_create_collection()
+                    
+                    collection.add(
+                        documents=[text_content],
+                        embeddings=[embeddings],
+                        metadatas=[{
+                            "filename": file.filename,
+                            "workflow_id": workflow_id,
+                            "user_id": user_id,
+                            "content_type": file.content_type,
+                            "size": len(content),
+                            "doc_id": str(db_document.id) if hasattr(db_document, 'id') else doc_id
+                        }],
+                        ids=[doc_id]
+                    )
+                    print(f"✓ Document stored in ChromaDB with embeddings: {doc_id}")
+                except Exception as e:
+                    if "dimension" in str(e).lower():
+                        print(f"Dimension mismatch detected: {str(e)}")
+                        print("Recreating collection with correct dimensions...")
+                        collection = self._get_or_create_collection(force_recreate=True)
+                        collection.add(
+                            documents=[text_content],
+                            embeddings=[embeddings],
+                            metadatas=[{
+                                "filename": file.filename,
+                                "workflow_id": workflow_id,
+                                "user_id": user_id,
+                                "content_type": file.content_type,
+                                "size": len(content),
+                                "doc_id": str(db_document.id) if hasattr(db_document, 'id') else doc_id
+                            }],
+                            ids=[doc_id]
+                        )
+                        print(f"✓ Document stored in ChromaDB with embeddings after recreation: {doc_id}")
+                    else:
+                        raise e
+            else:
+                print("WARNING: No embeddings available - storing document without embeddings")
+                # Store document without embeddings (text-only for fallback retrieval)
+                try:
+                    collection = self._get_or_create_collection()
+                    collection.add(
+                        documents=[text_content],
+                        metadatas=[{
+                            "filename": file.filename,
+                            "workflow_id": workflow_id,
+                            "user_id": user_id,
+                            "content_type": file.content_type,
+                            "size": len(content),
+                            "doc_id": str(db_document.id) if hasattr(db_document, 'id') else doc_id,
+                            "no_embeddings": True  # Flag for fallback retrieval
+                        }],
+                        ids=[doc_id]
+                    )
+                    print(f"✓ Document stored in ChromaDB without embeddings: {doc_id}")
+                except Exception as e:
+                    if "dimension" in str(e).lower():
+                        print(f"Dimension mismatch detected for no-embeddings storage: {str(e)}")
+                        print("Recreating collection...")
+                        collection = self._get_or_create_collection(force_recreate=True)
+                        collection.add(
+                            documents=[text_content],
+                            metadatas=[{
+                                "filename": file.filename,
+                                "workflow_id": workflow_id,
+                                "user_id": user_id,
+                                "content_type": file.content_type,
+                                "size": len(content),
+                                "doc_id": str(db_document.id) if hasattr(db_document, 'id') else doc_id,
+                                "no_embeddings": True  # Flag for fallback retrieval
+                            }],
+                            ids=[doc_id]
+                        )
+                        print(f"✓ Document stored in ChromaDB without embeddings after recreation: {doc_id}")
+                    else:
+                        raise e
+                
+            # Mark as processed
+            if self.db and hasattr(db_document, 'id'):
+                db_document.processed = True
+                self.db.commit()
+                
+            print(f"Document stored in ChromaDB with ID: {doc_id}")
             
             return {
-                "id": doc_id,
+                "doc_id": doc_id,
                 "filename": file.filename,
                 "size": len(content),
                 "content_type": file.content_type,
                 "processed": bool(embeddings),
-                "embeddings_count": len(embeddings) if embeddings else 0
+                "embeddings_count": len(embeddings) if embeddings else 0,
+                "text_length": len(text_content),
+                "message": f"Successfully processed {file.filename}"
             }
             
         except Exception as e:
+            print(f"Document processing error: {str(e)}")
             raise ValueError(f"Failed to process document: {str(e)}")
 
     async def _extract_pdf_text(self, content: bytes) -> str:
@@ -290,11 +495,25 @@ class DocumentService:
         except Exception as e:
             raise ValueError(f"Failed to extract PDF text: {str(e)}")
 
-    def _get_or_create_collection(self):
-        """Get or create ChromaDB collection"""
+    def _get_or_create_collection(self, force_recreate=False):
+        """Get or create ChromaDB collection with proper embedding configuration"""
         try:
-            return self.chroma_client.get_collection(self.collection_name)
+            if force_recreate:
+                # Delete existing collection if it exists
+                try:
+                    self.chroma_client.delete_collection(self.collection_name)
+                    print(f"Deleted existing collection: {self.collection_name}")
+                except:
+                    pass
+            
+            # Try to get existing collection first
+            collection = self.chroma_client.get_collection(self.collection_name)
+            print(f"Using existing collection: {self.collection_name}")
+            return collection
         except:
+            # Create new collection - let ChromaDB use its default embedding function
+            # This will use all-MiniLM-L6-v2 which produces 384-dimensional embeddings
+            print(f"Creating new collection: {self.collection_name}")
             return self.chroma_client.create_collection(self.collection_name)
 
     def _is_valid_file_type(self, filename: str) -> bool:

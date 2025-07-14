@@ -34,6 +34,7 @@ class WorkflowUpdate(BaseModel):
     description: Optional[str] = None
     nodes: Optional[List[WorkflowNodeBase]] = None
     edges: Optional[List[WorkflowEdgeBase]] = None
+    status: Optional[str] = None
 
 
 class WorkflowResponse(WorkflowBase):

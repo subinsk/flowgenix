@@ -42,7 +42,7 @@ export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
   };
 
   const handleFileUpload = async (files: File[]) => {
-    const embeddingModel = data?.embeddingModel || 'text-embedding-ada-002';
+    const embeddingModel = data?.embeddingModel || 'all-MiniLM-L6-v2';
     const apiKey = data?.apiKey;
 
     if (!apiKey) {
@@ -275,8 +275,17 @@ export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
             <label className="block text-xs font-medium text-muted-foreground mb-1">Embedding Model</label>
             <div className="nodrag">
               <Select
-                value={data?.embeddingModel || 'text-embedding-ada-002'}
-                onValueChange={value => data?.onUpdate?.(id, { data: { ...data, embeddingModel: value } })}
+                value={data?.embeddingModel || 'all-MiniLM-L6-v2'}
+                onValueChange={value => data?.onUpdate?.(id, { 
+                  data: { 
+                    ...data, 
+                    embeddingModel: value,
+                    config: { 
+                      ...data?.config, 
+                      embeddingModel: value 
+                    } 
+                  } 
+                })}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select embedding model" />
@@ -299,7 +308,16 @@ export const KnowledgeBaseNode = ({ id, data, selected }: any) => {
                 placeholder="Enter API key..."
                 value={data?.apiKey || ''}
                 onChange={e => {
-                  data?.onUpdate?.(id, { data: { ...data, apiKey: e.target.value } });
+                  data?.onUpdate?.(id, { 
+                    data: { 
+                      ...data, 
+                      apiKey: e.target.value,
+                      config: { 
+                        ...data?.config, 
+                        apiKey: e.target.value 
+                      } 
+                    } 
+                  });
                   if (e.target.value && typeof data?.clearValidationError === 'function') {
                     data.clearValidationError(id, 'knowledgeBase', 'apiKey');
                   }

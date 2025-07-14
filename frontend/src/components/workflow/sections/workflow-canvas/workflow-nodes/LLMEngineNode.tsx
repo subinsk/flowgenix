@@ -6,6 +6,7 @@ import { Icon as Iconify } from "@iconify/react";
 import { CustomHandle } from "./CustomHandle";
 import { Position } from "@xyflow/react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue, Separator, Switch } from "@/components/ui";
+import { getDefaultPrompt } from "@/constants/promptTemplates";
 
 export const LLMEngineNode = ({ id, data, selected }: any) => {
   // Use the new error structure: { nodeId, nodeType, field, error }
@@ -30,7 +31,8 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
   const temperature = data?.temperature !== undefined ? data.temperature : 0.7;
 
   const renderTokenizedSystemPrompt = () => {
-    const basePrompt = data?.systemPrompt || "You are a helpful AI assistant.";
+    const defaultPrompt = getDefaultPrompt();
+    const basePrompt = data?.systemPrompt || defaultPrompt;
     const tokens = [];
 
     tokens.push({
@@ -97,7 +99,16 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
               value={MODEL_NAME_MAP_REVERSE[data?.model] || data?.model || ''}
               onValueChange={(uiValue) => {
                 const backendValue = MODEL_NAME_MAP[uiValue] || uiValue;
-                data?.onUpdate?.(id, { data: { ...data, model: backendValue } });
+                data?.onUpdate?.(id, { 
+                  data: { 
+                    ...data, 
+                    model: backendValue,
+                    config: { 
+                      ...data?.config, 
+                      model: backendValue 
+                    } 
+                  } 
+                });
                 if (uiValue && typeof data?.clearValidationError === 'function') {
                   data.clearValidationError(id, 'llmEngine', 'model');
                 }
@@ -138,7 +149,16 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
                 placeholder="Enter API key..."
                 value={data?.apiKey || ''}
                 onChange={e => {
-                  data?.onUpdate?.(id, { data: { ...data, apiKey: e.target.value } });
+                  data?.onUpdate?.(id, { 
+                    data: { 
+                      ...data, 
+                      apiKey: e.target.value,
+                      config: { 
+                        ...data?.config, 
+                        apiKey: e.target.value 
+                      } 
+                    } 
+                  });
                   if (e.target.value && typeof data?.clearValidationError === 'function') {
                     data.clearValidationError(id, 'llmEngine', 'apiKey');
                   }
@@ -173,7 +193,16 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
             <label className="block text-xs font-medium text-muted-foreground mb-1">Temperature</label>
             <Select value={temperature.toString()} onValueChange={(value) => {
               const newTemp = parseFloat(value);
-              data?.onUpdate?.(id, { data: { ...data, temperature: newTemp } });
+              data?.onUpdate?.(id, { 
+                data: { 
+                  ...data, 
+                  temperature: newTemp,
+                  config: { 
+                    ...data?.config, 
+                    temperature: newTemp 
+                  } 
+                } 
+              });
             }}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select temperature" />
@@ -190,19 +219,28 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
             </Select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">System Prompt</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Prompt</label>
             <div className="min-h-[80px] p-2 text-sm bg-input border border-border rounded focus-within:ring-2 focus-within:ring-primary focus-within:border-transparent">
               <div className="flex flex-col gap-1">
                 {renderTokenizedSystemPrompt().map((token, index) => {
                   if (token.type === "editable") {
                     return (
                       <textarea
-                        key={token.key}
+                        key={`${token.key}-${index}`}
                         className="flex-1 min-w-[200px] bg-transparent border-none outline-none resize-none nodrag"
                         placeholder="Enter system prompt..."
                         value={token.content}
                         onChange={(e) => {
-                          data?.onUpdate?.(id, { data: { ...data, systemPrompt: e.target.value } });
+                          data?.onUpdate?.(id, { 
+                            data: { 
+                              ...data, 
+                              systemPrompt: e.target.value,
+                              config: { 
+                                ...data?.config, 
+                                systemPrompt: e.target.value 
+                              } 
+                            } 
+                          });
                         }}
                         onMouseDown={(e) => e.stopPropagation()}
                         onFocus={(e) => e.stopPropagation()}
@@ -212,16 +250,7 @@ export const LLMEngineNode = ({ id, data, selected }: any) => {
                       />
                     );
                   }
-                  // else {
-                  //   return (
-                  //     <span
-                  //       key={token.key}
-                  //       className={`inline-flex items-center px-2 py-1 text-xs font-medium ${token.color}`}
-                  //     >
-                  //       {token.content}
-                  //     </span>
-                  //   );
-                  // }
+                  return null;
                 })}
 
                 <div className="relative w-full h-4">

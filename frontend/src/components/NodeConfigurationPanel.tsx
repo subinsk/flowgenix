@@ -7,6 +7,7 @@ import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui
 import ApiKeyManager from './ApiKeyManager';
 import { apiKeyService } from '@/services/apiKeyService';
 import { NODE_TYPE_MAP } from '@/constants';
+import { PROMPT_TEMPLATES } from '@/constants/promptTemplates';
 
 interface NodeConfigurationPanelProps {
   selectedNode: any;
@@ -19,18 +20,24 @@ const predefinedConfigs = {
   userQuery: [
     { name: 'Simple Query', query: 'What is the main topic?' },
     { name: 'Detailed Analysis', query: 'Provide a detailed analysis of the content including key points, insights, and recommendations.' },
-    { name: 'Summary Request', query: 'Please summarize the key points in bullet format.' }
+    { name: 'Summary Request', query: 'Please summarize the key points in bullet format.' },
+    { name: 'Document Analysis', query: 'Can you give me a comprehensive analysis of this document?' },
+    { name: 'Report Summary', query: 'Hey can you give me summary of my attached document' }
   ],
   knowledgeBase: [
+    { name: 'MiniLM (HuggingFace)', model: 'all-MiniLM-L6-v2', chunkSize: 1000 },
     { name: 'OpenAI Embeddings', model: 'text-embedding-ada-002', chunkSize: 1000 },
     { name: 'High Quality Embeddings', model: 'text-embedding-3-large', chunkSize: 500 },
-    { name: 'Fast Embeddings', model: 'text-embedding-3-small', chunkSize: 1500 },
-    { name: 'MiniLM (HuggingFace)', model: 'all-MiniLM-L6-v2', chunkSize: 1000 }
+    { name: 'Fast Embeddings', model: 'text-embedding-3-small', chunkSize: 1500 }
   ],
   llmEngine: [
-    { name: 'GPT-4 Creative', model: 'GPT-4', temperature: 0.9, maxTokens: 2000 },
-    { name: 'GPT-4 Balanced', model: 'GPT-4', temperature: 0.7, maxTokens: 1000 },
-    { name: 'GPT-4 Precise', model: 'GPT-4', temperature: 0.3, maxTokens: 500 }
+    ...PROMPT_TEMPLATES.map(template => ({
+      name: template.name,
+      model: template.name === 'PDF Summarizer' ? 'GPT-4' : 'GPT-3.5 Turbo',
+      temperature: template.name === 'PDF Summarizer' ? 0.5 : 0.7,
+      maxTokens: template.name === 'Report Analyzer' ? 2000 : 1000,
+      systemPrompt: template.prompt
+    }))
   ],
   output: [
     { name: 'Formatted Output', format: 'markdown', includeMetadata: true },
@@ -172,13 +179,11 @@ export default function NodeConfigurationPanel({
         </label>
         <select
           className="w-full p-3 text-sm bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-          value={config.embeddingModel || 'text-embedding-ada-002'}
+          value={config.embeddingModel || 'all-MiniLM-L6-v2'}
           onChange={(e) => handleConfigChange('embeddingModel', e.target.value)}
         >
-          <option value="text-embedding-ada-002">text-embedding-ada-002</option>
-          <option value="text-embedding-3-small">text-embedding-3-small</option>
-          <option value="text-embedding-3-large">text-embedding-3-large</option>
           <option value="all-MiniLM-L6-v2">all-MiniLM-L6-v2 (HuggingFace)</option>
+          <option value="text-embedding-ada-002">text-embedding-ada-002</option>
         </select>
       </div>
 

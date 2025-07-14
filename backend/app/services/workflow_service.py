@@ -267,16 +267,36 @@ class WorkflowService:
         if user_id and self.api_key_service:
             try:
                 # Get all stored API keys for the user
-                for key_name in ["openai", "serpapi", "brave", "huggingface"]:
+                for key_name in ["openai", "serpapi", "brave", "huggingface", "gemini"]:
                     key_value = self.api_key_service.get_decrypted_api_key(user_id, key_name)
                     if key_value:
                         stored_api_keys[key_name] = key_value
             except Exception as e:
                 print(f"Warning: Could not retrieve stored API keys: {e}")
 
-        for node in nodes:
+        # Sort nodes to ensure proper execution order: userQuery -> knowledgeBase -> llmEngine -> output
+        node_order = {"userQuery": 1, "knowledgeBase": 2, "webSearch": 3, "llmEngine": 4, "output": 5}
+        sorted_nodes = sorted(nodes, key=lambda x: node_order.get(x["type"], 99))
+        
+        print(f"DEBUG: Original node order: {[n['type'] for n in nodes]}")
+        print(f"DEBUG: Sorted node order: {[n['type'] for n in sorted_nodes]}")
+
+        for node in sorted_nodes:
             node_type = node["type"]
-            node_config = node.get("data", {})
+            # Try to get config from data.config first, then fall back to data directly
+            node_data = node.get("data", {})
+            node_config = node_data.get("config", {})
+            
+            # If config is empty, use the data directly (for backward compatibility)
+            if not node_config:
+                node_config = node_data
+                
+            print(f"DEBUG: Processing node type={node_type}, config={node_config}")
+            print(f"DEBUG: Full node data: {node.get('data', {})}")
+            print(f"DEBUG: Node keys: {list(node.keys())}")
+            if "data" in node:
+                print(f"DEBUG: Data keys: {list(node['data'].keys())}")
+            
             if node_type == "userQuery":
                 context["user_query"] = query
                 current_output = query
@@ -288,14 +308,25 @@ class WorkflowService:
                         collection = self.document_service._get_or_create_collection()
                         query_embedding = None
                         
+                        print(f"DEBUG: Processing knowledgeBase node for workflow {workflow_id}")
+                        print(f"DEBUG: Current output for embedding search: {current_output}")
+                        
                         # Try to get query embedding - determine which embedding model and API key to use
-                        embedding_model = node_config.get("embeddingModel", "text-embedding-ada-002")
+                        embedding_model = node_config.get("embeddingModel", "all-MiniLM-L6-v2")  # Default to HuggingFace model
                         embedding_api_key = None
                         
+                        # Check for API key in node config first
+                        embedding_api_key = node_config.get("apiKey")  # Knowledge Base nodes store API key in apiKey field
+                        
                         if embedding_model == "all-MiniLM-L6-v2":
-                            embedding_api_key = node_config.get("huggingfaceApiKey") or stored_api_keys.get("huggingface")
+                            if not embedding_api_key:
+                                embedding_api_key = stored_api_keys.get("huggingface")
                         else:
-                            embedding_api_key = node_config.get("openaiApiKey") or stored_api_keys.get("openai")
+                            if not embedding_api_key:
+                                embedding_api_key = stored_api_keys.get("openai")
+                        
+                        print(f"DEBUG: Using embedding model: {embedding_model}")
+                        print(f"DEBUG: API key available: {bool(embedding_api_key)}")
                         
                         try:
                             from app.services.ai_service import AIService
@@ -306,43 +337,78 @@ class WorkflowService:
                                     model=embedding_model, 
                                     api_key=embedding_api_key
                                 )
+                                print(f"DEBUG: Generated embedding: {bool(query_embedding)}")
                         except Exception as e:
-                            print(f"Warning: Could not generate embeddings: {e}")
+                            print(f"DEBUG: Could not generate embeddings: {e}")
                         
-                        if query_embedding:
-                            # Search with embeddings
-                            results = collection.query(
-                                query_embeddings=[query_embedding],
-                                n_results=5,
+                        # Always try to get documents first (more reliable)
+                        print(f"DEBUG: Getting all documents for workflow: {workflow_id}")
+                        try:
+                            all_results = collection.get(
                                 where={"workflow_id": workflow_id}
                             )
+                            print(f"DEBUG: Documents retrieval successful: {bool(all_results and all_results['documents'])}")
                             
-                            if results and results['documents'] and results['documents'][0]:
-                                relevant_content = "\n\n".join(results['documents'][0])
-                                context["knowledge_context"] = results['documents'][0]
-                                current_output = f"Query: {current_output}\n\nRelevant Information from Knowledge Base:\n{relevant_content}"
-                        else:
-                            # Fallback: get all documents for this workflow
-                            try:
-                                all_results = collection.get(
-                                    where={"workflow_id": workflow_id}
-                                )
-                                if all_results and all_results['documents']:
-                                    # Use first 3 documents as context
-                                    relevant_content = "\n\n".join(all_results['documents'][:3])
-                                    context["knowledge_context"] = all_results['documents'][:3]
-                                    current_output = f"Query: {current_output}\n\nInformation from Knowledge Base:\n{relevant_content}"
-                            except Exception as e:
-                                print(f"Warning: Could not retrieve documents: {e}")
+                            if all_results and all_results['documents']:
+                                # Use all documents as context (they're already chunked appropriately)
+                                relevant_content = "\n\n".join(all_results['documents'])
+                                context["knowledge_context"] = all_results['documents']
+                                print(f"DEBUG: Document context set, total length: {len(relevant_content)}")
+                                
+                                # If we have embeddings, try to search for most relevant parts
+                                if query_embedding:
+                                    try:
+                                        print(f"DEBUG: Attempting embedding search for workflow: {workflow_id}")
+                                        results = collection.query(
+                                            query_embeddings=[query_embedding],
+                                            n_results=3,
+                                            where={"workflow_id": workflow_id}
+                                        )
+                                        
+                                        if results and results['documents'] and results['documents'][0]:
+                                            # Use semantic search results if available
+                                            relevant_content = "\n\n".join(results['documents'][0])
+                                            context["knowledge_context"] = results['documents'][0]
+                                            print(f"DEBUG: Using semantic search results, length: {len(relevant_content)}")
+                                        
+                                    except Exception as e:
+                                        print(f"DEBUG: Embedding search failed (dimension mismatch), using all documents: {e}")
+                                        # Keep using all documents as fallback
+                                
+                            else:
+                                print(f"DEBUG: No documents found for workflow: {workflow_id}")
+                                
+                        except Exception as e:
+                            print(f"DEBUG: Could not retrieve documents: {e}")
                     except Exception as e:
-                        print(f"Warning: Knowledge Base search failed: {e}")
+                        print(f"DEBUG: Knowledge Base processing failed: {e}")
                         # Continue without knowledge base context
             elif node_type == "llmEngine":
                 model = node_config.get("model", "gpt-3.5-turbo")
                 system_prompt = node_config.get("systemPrompt", "You are a helpful assistant.")
                 
-                # Get API key - prefer node config, fallback to stored key
-                llm_api_key = node_config.get("apiKey") or stored_api_keys.get("openai")
+                print(f"DEBUG LLM Engine: model={model}")
+                print(f"DEBUG LLM Engine: stored_api_keys available: {list(stored_api_keys.keys())}")
+                
+                # Get API key - prefer node config, fallback to stored key based on model type
+                llm_api_key = node_config.get("apiKey")
+                print(f"DEBUG LLM Engine: node_config apiKey={llm_api_key}")
+                
+                if not llm_api_key:
+                    # Determine API key type based on model
+                    if model.startswith("gpt-") or model.startswith("text-") or model.startswith("davinci"):
+                        llm_api_key = stored_api_keys.get("openai")
+                        print(f"DEBUG LLM Engine: Detected OpenAI model, using openai key: {bool(llm_api_key)}")
+                    elif model.startswith("gemini-") or "gemini" in model.lower() or "flash" in model.lower():
+                        llm_api_key = stored_api_keys.get("gemini")
+                        print(f"DEBUG LLM Engine: Detected Gemini model, using gemini key: {bool(llm_api_key)}")
+                    else:
+                        # Default to trying both
+                        llm_api_key = stored_api_keys.get("gemini") or stored_api_keys.get("openai")
+                        print(f"DEBUG LLM Engine: Unknown model, using fallback key: {bool(llm_api_key)}")
+                
+                print(f"DEBUG LLM Engine: Final API key available: {bool(llm_api_key)}")
+                print(f"DEBUG LLM Engine: Model for AI service call: {model}")
                 
                 # If web search is enabled, perform search first
                 if node_config.get("webSearchEnabled", False):
@@ -366,14 +432,24 @@ class WorkflowService:
                             system_prompt += f"\n\nCurrent web search results for the query:\n{formatted_results}"
                 
                 # Add document context to system prompt if available
-                if "knowledge_context" in context:
+                if "knowledge_context" in context and context["knowledge_context"]:
                     context_content = "\n\n".join(context["knowledge_context"])
-                    system_prompt += f"\n\nRelevant information from uploaded documents:\n{context_content}\n\nPlease use the above document content to answer the user's question accurately."
+                    print(f"DEBUG: Adding document context to LLM, length: {len(context_content)}")
+                    system_prompt += f"\n\n=== DOCUMENT CONTENT ===\nThe following content is from documents that the user has uploaded and wants to discuss. This is the actual content from their documents:\n\n{context_content}\n\n=== END DOCUMENT CONTENT ===\n\nBased on the document content above, please provide accurate and detailed responses to the user's questions. Always reference specific parts of the document when answering."
+                else:
+                    print(f"DEBUG: No document context available for LLM")
                 
                 messages = [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": current_output}
                 ]
+                
+                print(f"DEBUG: About to call AI service with:")
+                print(f"  model={model}")
+                print(f"  api_key={'***' if llm_api_key else 'None'}")
+                print(f"  temperature={node_config.get('temperature', 0.7)}")
+                print(f"  max_tokens={node_config.get('maxTokens', 1000)}")
+                
                 response = await self.ai_service.generate_response(
                     messages=messages,
                     model=model,
@@ -381,6 +457,8 @@ class WorkflowService:
                     max_tokens=node_config.get("maxTokens", 1000),
                     api_key=llm_api_key
                 )
+                
+                print(f"DEBUG: AI service response: {response.get('content', 'No content')}")
                 current_output = response["content"]
                 context["llm_response"] = current_output
             elif node_type == "webSearch":
