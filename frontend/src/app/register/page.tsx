@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
-import { authService } from '@/services';
 import { Button } from '@/components/ui';
 import { Logo } from '@/components/common/logo';
 import { useAuth } from '@/contexts/AuthContext';
